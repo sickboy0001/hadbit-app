@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 
 import { initialItems } from "@/components/dnd-tree/dummy";
 import SortableTree from "@/components/dnd-tree/SortableTree";
