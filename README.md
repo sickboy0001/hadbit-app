@@ -24,9 +24,7 @@ GitHubにプッシュするたびに、Vercelは自動的に新しいビルド�
 
 MVPの開発を通して、ユーザーからのフィードバックを得ながら、徐々に機能を拡張していくと良いでしょう。頑張ってください！
 
-test
-
-test
+test　test testtest
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
