@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Header } from "@/components/Header"; // Headerコンポーネントをインポート
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +24,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ja">
+      {/* 日本語なら lang="ja" */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`} // flex flex-col min-h-screen を追加してフッターを下に固定しやすくする
       >
-        {children}
+        <Header /> {/* ヘッダーコンポーネントをここに追加 */}
+        <main className="flex-grow container mx-auto px-4 py-8">
+          {" "}
+          {/* メインコンテンツ用のラッパーを追加 (任意) */}
+          {children}
+        </main>
+        {/* 必要であればフッターをここに追加 */}
+        {/* <footer className="border-t py-4 text-center text-sm text-muted-foreground">
+          © 2025 Hadbit
+        </footer> */}
       </body>
     </html>
   );
