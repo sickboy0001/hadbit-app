@@ -1,3 +1,31 @@
+
+git remote add origin git@github.com:sickboy0001/hadbit-app.git
+git remote add origin https://github.com/sickboy0001/hadbit-app.git
+
+
+
+5. Vercelへのデプロイ
+
+最後に、作成したNext.jsアプリケーションをVercelにデプロイします。
+
+Vercelのウェブサイト (https://vercel.com/) にアクセスし、GitHubアカウントでログインします。
+ダッシュボードの「Add New...」ボタンをクリックし、「Project」を選択します。
+「Import Git Repository」のセクションで、先ほどGitHubに作成したリポジトリ (<your-github-username>/<your-repository-name>) を検索または選択します。
+プロジェクトの設定画面が表示されます。Next.jsプロジェクトは自動的に認識されるため、通常はデフォルトの設定のままで問題ありません。
+「Deploy」ボタンをクリックします。
+Vercelが自動的にあなたのGitHubリポジトリからコードをビルドし、デプロイを開始します。デプロイが完了すると、VercelからアプリケーションのURLが発行されます。このURLにアクセスすることで、あなたの「hadbit MVP」が公開されていることを確認できます。
+
+補足:
+
+Vercelのデプロイメントの進捗状況は、Vercelのダッシュボードで確認できます。
+GitHubにプッシュするたびに、Vercelは自動的に新しいビルドとデプロイを実行します。
+環境変数などの設定が必要な場合は、Vercelのプロジェクト設定で行うことができます。
+これで、ReactとNext.jsで作成した「hadbit」のMVPをGitHubにプッシュし、Vercelにデプロイする手順は完了です。おめでとうございます！
+
+MVPの開発を通して、ユーザーからのフィードバックを得ながら、徐々に機能を拡張していくと良いでしょう。頑張ってください！
+
+test
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
