@@ -13,7 +13,7 @@ const DraggableTree: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-auto p-6">
-          <SortableTree defaultItems={initialItems} />
+          {/* <SortableTree defaultItems={initialItems} /> */}
         </div>
 
         <div className="bg-gray-50 border-t border-gray-200 p-4 text-xs text-gray-500 text-center">

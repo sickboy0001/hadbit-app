@@ -1,9 +1,10 @@
-import PageTestTree from "@/components/test/tree/PageTestTree";
+import PageHabitItemManagement from "@/components/HabitItem/Management/PageHabitItemManagement";
+
 export default function Home() {
   return (
     <div>
       <main>
-        <PageTestTree></PageTestTree>
+        <PageHabitItemManagement></PageHabitItemManagement>
       </main>
     </div>
   );
