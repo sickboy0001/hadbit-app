@@ -1,8 +1,9 @@
 import { CSS } from "@dnd-kit/utilities";
 import { AnimateLayoutChanges, useSortable } from "@dnd-kit/sortable";
 import { CSSProperties } from "react";
-import { ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Trash2 } from "lucide-react";
 import { FlattenedItem } from "./types";
+import { Button } from "../ui/button";
 
 type SortableTreeItemProps = {
   item: FlattenedItem;
@@ -12,6 +13,7 @@ type SortableTreeItemProps = {
   indentationWidth: number;
   clone?: boolean;
   childrenCount?: number;
+  onRemove?: (id: string) => void;
 };
 
 const animateLayoutChanges: AnimateLayoutChanges = ({
@@ -27,6 +29,7 @@ export const SortableTreeItem = ({
   indentationWidth,
   clone,
   childrenCount,
+  onRemove,
 }: SortableTreeItemProps) => {
   const {
     isDragging,
@@ -92,6 +95,21 @@ export const SortableTreeItem = ({
           )}
           <span className="text-sm text-gray-800">{item.name}</span>
         </div>
+        {/* 削除ボタン */}
+        {onRemove && ( // onRemove が渡された場合のみ表示
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto h-6 w-6 text-muted-foreground hover:text-destructive" // 右寄せ、スタイル調整
+            onClick={(e) => {
+              e.stopPropagation(); // ドラッグイベントなどと干渉しないように
+              onRemove(item.id);
+            }}
+            aria-label={`Delete ${item.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
     </li>
   );

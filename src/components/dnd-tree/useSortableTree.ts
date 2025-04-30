@@ -13,12 +13,7 @@ import {
   SensorOptions,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import {
-  FlattenedItem,
-  FlattenedItems,
-  SensorContext,
-  TreeItem,
-} from "./types";
+import { FlattenedItem, SensorContext, TreeItem } from "./types";
 import { buildTree, flattenTree, getChildrenIds, getProjection } from "./utils";
 
 const DEFAULT_INDENTATION_WIDTH = 50;
@@ -27,6 +22,7 @@ const DEFAULT_INDENTATION_WIDTH = 50;
 type UseSortableTreeOptions = {
   defaultItems: TreeItem[];
   onItemsChange: (items: TreeItem[]) => void; // ★ コールバック関数を受け取る
+  onRemoveItem: (id: string) => void;
   indentationWidth?: number;
   indicator?: boolean;
 };
@@ -34,6 +30,7 @@ type UseSortableTreeOptions = {
 export const useSortableTree = ({
   defaultItems,
   onItemsChange,
+  onRemoveItem,
   indentationWidth = DEFAULT_INDENTATION_WIDTH,
   indicator = false,
 }: UseSortableTreeOptions) => {
@@ -43,6 +40,18 @@ export const useSortableTree = ({
   const [offsetLeft, setOffsetLeft] = useState(0);
 
   const [expandedIds, setExpandedIds] = useState<UniqueIdentifier[]>([]);
+
+  // defaultItems プロップの変更を監視し、内部状態 `items` を同期させる
+  useEffect(() => {
+    // 参照比較で変更を検知。より厳密な比較が必要な場合もある。
+    // 親コンポーネントで状態更新時に新しい配列が生成されていることを期待。
+    if (defaultItems !== items) {
+      setItems(defaultItems);
+      // もし defaultItems の変更によって他の状態もリセット/更新する必要があればここで行う
+      // 例: setExpandedIds([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultItems]); // defaultItems が変更されたらこの Effect を実行
 
   const flattenedItems = useMemo(() => {
     const flattenedTree = flattenTree(items);
@@ -317,6 +326,7 @@ export const useSortableTree = ({
           : undefined,
       expanded: item.children.length > 0 && expandedIds.includes(item.id),
       indentationWidth,
+      onRemove: onRemoveItem,
     };
   };
 

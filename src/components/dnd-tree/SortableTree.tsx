@@ -61,6 +61,7 @@ const dropAnimationConfig: DropAnimation = {
 type SortableTreeProps = {
   defaultItems: TreeItem[];
   onItemsChange: (items: TreeItem[]) => void; // ★ コールバック関数を受け取る Props
+  onRemoveItem: (id: string) => void;
 };
 
 /**
@@ -70,7 +71,7 @@ type SortableTreeProps = {
  * https://zenn.dev/uraaaa24/articles/e36a7bfd52f0ca
  */
 const SortableTree = (props: SortableTreeProps) => {
-  const { defaultItems, onItemsChange } = props;
+  const { defaultItems, onItemsChange, onRemoveItem } = props;
   // useSortableTree カスタムフックを呼び出し、ツリーの状態管理と操作に必要な値を取得する。
   // defaultItems を初期データとして渡す。
   const {
@@ -80,7 +81,7 @@ const SortableTree = (props: SortableTreeProps) => {
     sortedIds, // SortableContext に渡す、現在の順序でのアイテムID配列
     getDndContextProps, // DndContext に渡すプロパティを取得する関数
     getSortableTreeItemProps, // 各 SortableTreeItem に渡すプロパティを取得する関数
-  } = useSortableTree({ defaultItems, onItemsChange });
+  } = useSortableTree({ defaultItems, onItemsChange, onRemoveItem });
 
   const sensors = useSensors(useSensor(PointerSensor));
   const [isMounted, setIsMounted] = useState(false); // マウント状態を管理するstate

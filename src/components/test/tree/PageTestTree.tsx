@@ -1,9 +1,6 @@
 "use client";
 import React from "react";
 
-import { initialItems } from "@/components/dnd-tree/dummy";
-import SortableTree from "@/components/dnd-tree/SortableTree";
-
 const DraggableTree: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
