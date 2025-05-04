@@ -1,4 +1,3 @@
-import { UniqueIdentifier } from "@dnd-kit/core";
 import type { RefObject } from "react";
 
 export type TreeItem = {
@@ -12,7 +11,7 @@ export type TreeItems = TreeItem[];
 
 export type FlattenedItem = TreeItem & {
   depth: number;
-  parentId: UniqueIdentifier | null;
+  parentId: number | null;
   index: number;
 };
 

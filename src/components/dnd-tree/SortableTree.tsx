@@ -62,6 +62,7 @@ type SortableTreeProps = {
   defaultItems: TreeItem[];
   onItemsChange: (items: TreeItem[]) => void; // ★ コールバック関数を受け取る Props
   onRemoveItem: (id: string) => void;
+  onEditItem?: (id: string) => void;
 };
 
 /**
@@ -71,7 +72,7 @@ type SortableTreeProps = {
  * https://zenn.dev/uraaaa24/articles/e36a7bfd52f0ca
  */
 const SortableTree = (props: SortableTreeProps) => {
-  const { defaultItems, onItemsChange, onRemoveItem } = props;
+  const { defaultItems, onItemsChange, onRemoveItem, onEditItem } = props;
   // useSortableTree カスタムフックを呼び出し、ツリーの状態管理と操作に必要な値を取得する。
   // defaultItems を初期データとして渡す。
   const {
@@ -97,6 +98,7 @@ const SortableTree = (props: SortableTreeProps) => {
         {flattenedItems.map((item) => (
           <SortableTreeItem
             key={item.id}
+            onEditItem={onEditItem}
             {...getSortableTreeItemProps(item, INDENTION_WIDTH)}
           />
         ))}

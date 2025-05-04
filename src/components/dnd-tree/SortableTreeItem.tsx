@@ -1,7 +1,13 @@
 import { CSS } from "@dnd-kit/utilities";
 import { AnimateLayoutChanges, useSortable } from "@dnd-kit/sortable";
 import { CSSProperties } from "react";
-import { ChevronDown, ChevronRight, GripVertical, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { FlattenedItem } from "./types";
 import { Button } from "../ui/button";
 
@@ -14,6 +20,7 @@ type SortableTreeItemProps = {
   clone?: boolean;
   childrenCount?: number;
   onRemove?: (id: string) => void;
+  onEditItem?: (id: string) => void;
 };
 
 const animateLayoutChanges: AnimateLayoutChanges = ({
@@ -30,6 +37,7 @@ export const SortableTreeItem = ({
   clone,
   childrenCount,
   onRemove,
+  onEditItem,
 }: SortableTreeItemProps) => {
   const {
     isDragging,
@@ -94,6 +102,19 @@ export const SortableTreeItem = ({
             </button>
           )}
           <span className="text-sm text-gray-800">{item.name}</span>
+          {onEditItem && ( // onEditItem が渡されている場合のみ表示
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation(); // イベントの伝播を止める (ドラッグ等に影響しないように)
+                onEditItem(item.id);
+              }}
+              aria-label={`Edit ${item.name}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         {/* 削除ボタン */}
         {onRemove && ( // onRemove が渡された場合のみ表示

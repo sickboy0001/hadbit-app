@@ -46,8 +46,8 @@ npm run dev
 
 ## 4.デモ or スクリーンショット
 
-Vercel；ｘｘｘｘ  
-https://
+Vercel:[Vercel](https://hadbit-app.vercel.app/)
+Github:[GitHub](https://github.com/sickboy0001/hadbit-app)
 
 ## 5.環境
 ### ■開発環境
