@@ -1,4 +1,4 @@
-import PageHabitTracker from "@/components/Habit/PageHabitTracker";
+import PageHabitTracker from "@/components/Habit/Tracker/PageHabitTracker";
 
 export default async function HabitItemsPage() {
   // サーバーコンポーネントで初期データを取得

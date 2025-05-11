@@ -1,4 +1,4 @@
-import { Habit } from "../data/habitData";
+import { Habit } from "@/types/habit/ui";
 
 // Helper function to find a habit by ID in the hierarchy
 export const findHabitById = (habits: Habit[], id: string): Habit | null => {

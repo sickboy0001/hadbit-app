@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-// import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
@@ -30,7 +29,7 @@ function Calendar({
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse", // border-collapse は必要
-        head_row: "", // グリッドを削除
+        head_row: "!hidden", // グリッドを削除
         head_cell:
           "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
         row: "", // グリッドを削除
@@ -59,15 +58,6 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
-      // components={{
-      //   IconLeft: ({ className, ...props }) => (
-      //     <ChevronLeft className={cn("size-4", className)} {...props} />
-      //   ),
-      //   IconRight: ({ className, ...props }) => (
-      //     <ChevronRight className={cn("size-4", className)} {...props} />
-      //   ),
-      // }}
-      // components プロパティから icon_left と icon_right を削除
       {...props}
     />
   );

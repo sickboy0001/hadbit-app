@@ -4,15 +4,17 @@ import { useState } from "react";
 import { format, addDays, subDays, isEqual } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
-import { findHabitById, getParentName } from "./utils/habitUtils"; // ユーティリティをインポート
 import PresetButtonsSection from "./PresetButtonsSection";
 import DateControls from "./DateControls";
 import HabitDisplayTable from "./HabitDisplayTable";
-import {
-  createSampleData,
-  PRESET_HABIT_BUTTONS,
-  Habit,
-} from "./data/habitData"; // サンプルデータと型をインポート
+// import {
+//   createSampleData,
+//   PRESET_HABIT_BUTTONS,
+//   Habit,
+// } from ".,/data/habitData"; // サンプルデータと型をインポート
+import { findHabitById, getParentName } from "@/lib/habit";
+import { createSampleData, PRESET_HABIT_BUTTONS } from "./dummy";
+import { Habit } from "@/types/habit/ui";
 
 export type PresetDisplayItem =
   | { type: "button"; id: string; name: string; originalName: string }

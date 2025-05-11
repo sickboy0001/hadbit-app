@@ -1,4 +1,4 @@
-import PageHabitItemManagement from "@/components/HabitItem/Management/PageHabitItemManagement";
+import PageHabitItemManagement from "@/components/Habit/Management/PageHabitItemManagement";
 
 export default function Home() {
   return (
