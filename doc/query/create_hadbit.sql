@@ -1,16 +1,20 @@
--- ntree テーブル
 -- 親子関係や順序を管理する汎用的なツリー構造テーブル
 CREATE TABLE IF NOT EXISTS public.habit_item_tree (
-    id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
+    item_id INTEGER NOT NULL PRIMARY KEY,
     parent_id INTEGER,
-    order_no INTEGER,
-    -- 外部キー制約は参照先のテーブルが確定してから追加する方が安全な場合がある
-    -- FOREIGN KEY (parent_id) REFERENCES public.ntree(id) ON DELETE CASCADE -- 必要に応じて ON DELETE 動作を指定
+    order_no INTEGER
 );
+
+ALTER TABLE public.habit_item_tree
+ADD CONSTRAINT fk_habit_item_tree_item_id
+FOREIGN KEY (item_id)
+REFERENCES public.habit_items (id)
+ON DELETE CASCADE  -- habit_items のレコードを削除する際、関連する habit_item_tree レコードも削除
+
+
 -- 親IDでの検索を高速化するためのインデックス
 CREATE INDEX IF NOT EXISTS idx_habit_item_tree_parent_id ON public.habit_item_tree(parent_id);
 
--- habit_item テーブル
 -- 習慣化したい項目 (Habit Item) を管理するテーブル
 CREATE TABLE IF NOT EXISTS public.habit_items (
     id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
@@ -23,12 +27,17 @@ CREATE TABLE IF NOT EXISTS public.habit_items (
     visible_flag BOOLEAN DEFAULT TRUE, -- デフォルト値を追加 (通常は表示)
     delete_flag BOOLEAN DEFAULT FALSE, -- デフォルト値を追加 (論理削除用)
     updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
-    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP -- 型とデフォルト値を変更
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
+    item_style TEXT -- マークや色などの表示スタイルをテキストで格納 (例: "◆", "red", "mark:◆;color:red")
 );
 -- ユーザーIDでの検索を高速化するためのインデックス
 CREATE INDEX IF NOT EXISTS idx_habit_items_user_id ON public.habit_items (user_id);
 
--- habit_done テーブル
+-- - 既存の habit_items テーブルに item_style 列を追加 (存在しない場合のみ)
+-- ALTER TABLE public.habit_items
+-- ADD COLUMN IF NOT EXISTS item_style TEXT; -- マークや色などの表示スタイルをテキストで格納
+
+
 -- 習慣項目の実行記録 (Done) を管理するテーブル
 CREATE TABLE IF NOT EXISTS public.habit_logs (
     id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
@@ -42,7 +51,6 @@ CREATE TABLE IF NOT EXISTS public.habit_logs (
 CREATE INDEX IF NOT EXISTS idx_habit_logs_user_id ON public.habit_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_habit_logs_item_id ON public.habit_logs (item_id);
 
--- habit_item_fields テーブル
 -- 習慣項目実行時に記録する入力項目 (例: 体重、時間など) の定義
 CREATE TABLE IF NOT EXISTS public.habit_item_fields  (
     id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
@@ -91,8 +99,8 @@ GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authe
 GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
 
 -- シーケンス (serialによる自動採番) の使用権限
-GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO authenticated;
+-- GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO anon;
+-- GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO authenticated;
 GRANT USAGE ON SEQUENCE public.habit_items_id_seq TO anon;
 GRANT USAGE ON SEQUENCE public.habit_items_id_seq TO authenticated;
 GRANT USAGE ON SEQUENCE public.habit_logs_id_seq TO anon;
@@ -105,32 +113,33 @@ GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO authenticated;
 
 /*
 -- template
-CREATE TABLE IF NOT EXISTS public.tag_mas (
-  id serial PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  tag_name TEXT NULL,
-  name TEXT NULL,
-  description TEXT NULL,
-  visible_flg BOOLEAN NOT NULL DEFAULT FALSE,
-  favorite_flg BOOLEAN NOT NULL DEFAULT FALSE,
-  public_flg BOOLEAN NOT NULL DEFAULT FALSE,
-  create_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  update_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-  -- constraint tag_mas_id_pkey primary key (id)
+
+-- 習慣項目実行時に記録された入力値
+CREATE TABLE IF NOT EXISTS public.habit_log_fields (
+    id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
+    log_id INTEGER NOT NULL,
+    item_field_id INTEGER NOT NULL,
+    name TEXT,
+    before_text TEXT,
+    value TEXT,
+    type TEXT,
+    after_text TEXT,
+    update_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
+    create_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP -- 型とデフォルト値を変更
 );
+-- 実行記録IDと入力項目定義IDでの検索を高速化するためのインデックス
+CREATE INDEX IF NOT EXISTS idx_habit_log_fields_done_id ON public.habit_log_fields (log_id);
+CREATE INDEX IF NOT EXISTS idx_habit_log_fields_item_input_id ON public.habit_log_fields (item_field_id );
 
-CREATE INDEX idx_tag_mas_user_id ON public.tag_mas (user_id);
-
+-- スキーマの使用権限
 grant usage on schema "public" to anon;
 grant usage on schema "public" to authenticated;
 
+-- テーブルへのアクセス権限 (SupabaseのRLSを使う場合はより詳細な設定が必要)
 GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authenticated;
 GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
 
-GRANT USAGE ON SEQUENCE tag_mas_id_seq TO anon;
-GRANT USAGE ON SEQUENCE tag_mas_id_seq TO authenticated;
-
-
-
-
+-- シーケンス (serialによる自動採番) の使用権限
+GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO anon;
+GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO authenticated;
 */

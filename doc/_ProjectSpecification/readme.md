@@ -155,13 +155,24 @@ sickboy0001/hadbit-app https://github.com/sickboy0001/hadbit-app
 
 ##### 画面一覧
 
-***
+習慣化一覧画面
+![alt text](image.png)
+習慣化メンテナンス画面
+![alt text](image-1.png)
+
+記録画面
+![alt text](image-2.png)
+
+
+
+[原本](https://www.figma.com/design/j6MqagLNYSju7cH2SVUpvK/Zettelkasten_tool_-shadcn-ui?node-id=2102-1046&p=f&t=6oHssI3mLvlLrBt0-0)
+
+
 例）
 |機能ID|機能名|画面ID|画面名|画面概要|備考|
 |-|-|-|-|-|-|
 |
 
-***
 
 ##### 画面遷移図（リンク）
 ***

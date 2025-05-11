@@ -11,11 +11,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogClose, // DialogClose をインポート
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
 import { signIn } from "@/app/actions/auth";
 import { useRouter } from "next/navigation";
 

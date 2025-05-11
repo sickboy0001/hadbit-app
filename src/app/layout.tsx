@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/organisms/Header";
-import { readUtilUser } from "./actions/user/read";
 import { AuthProvider } from "@/contexts/AuthContext"; // ★ AuthProvider をインポート
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,10 +41,11 @@ export default function RootLayout({
             {/* メインコンテンツ用のラッパーを追加 (任意) */}
             {children}
           </main>
+          <Toaster richColors position="bottom-right" />
           {/* 必要であればフッターをここに追加 */}
-          {/* <footer className="border-t py-4 text-center text-sm text-muted-foreground">
-          © 2025 Hadbit
-        </footer> */}
+          <footer className="border-t py-4 text-center text-sm text-muted-foreground">
+            © 2025 Hadbit
+          </footer>
         </AuthProvider>
       </body>
     </html>

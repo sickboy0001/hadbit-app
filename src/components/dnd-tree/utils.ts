@@ -1,7 +1,10 @@
-import type { UniqueIdentifier } from "@dnd-kit/core";
-
 import { arrayMove } from "@dnd-kit/sortable";
-import { FlattenedItem, FlattenedItems, TreeItem, TreeItems } from "./types";
+import {
+  FlattenedItem,
+  FlattenedItems,
+  TreeItem,
+  TreeItems,
+} from "@/types/habit/ui";
 
 /**
  * ドラッグ中のアイテムの深さを取得する
@@ -68,8 +71,8 @@ const getParentId = (
  */
 export const getProjection = (
   items: FlattenedItems,
-  activeId: UniqueIdentifier,
-  overId: UniqueIdentifier,
+  activeId: number,
+  overId: number,
   dragOffset: number,
   indentationWidth: number
 ) => {
@@ -92,7 +95,7 @@ export const getProjection = (
 
 const findFromTreeItem = (
   items: TreeItem[],
-  id: UniqueIdentifier
+  id: number // UniqueIdentifier から number に変更
 ): FlattenedItem | undefined => {
   const flattenedItems = flatten(items);
   return flattenedItems.find((item) => item.id === id);
@@ -100,15 +103,16 @@ const findFromTreeItem = (
 
 export const getChildrenIds = (
   items: TreeItems,
-  id: UniqueIdentifier,
+  id: number,
   includeSelf = false
-): UniqueIdentifier[] => {
+): number[] => {
   const item = findFromTreeItem(items, id);
   if (!item) {
     return [];
   }
 
-  const childrenIds = item.children.flatMap((child) =>
+  // const childrenIds = item.children.flatMap((child) =>
+  const childrenIds: number[] = item.children.flatMap((child) =>
     getChildrenIds(items, child.id, true)
   );
 
@@ -125,7 +129,7 @@ export const getChildrenIds = (
  */
 const flatten = (
   items: TreeItems,
-  parentId: UniqueIdentifier | null = null,
+  parentId: number | null = 0,
   depth = 0
 ): FlattenedItems => {
   const result: FlattenedItems = [];
@@ -139,7 +143,7 @@ const flatten = (
     };
     result.push(currentItem);
 
-    const children = flatten(item.children, item.id, depth + 1);
+    const children = flatten(item.children, Number(item.id), depth + 1);
     result.push(...children);
   });
 
@@ -166,8 +170,9 @@ export const flattenTree = (items: TreeItems): FlattenedItems => {
  * @param itemId
  * @returns
  */
-export const findItem = (items: TreeItems, itemId: UniqueIdentifier) => {
-  return items.find(({ id }) => id === itemId);
+export const findItem = (items: TreeItems, itemId: number) => {
+  // itemId を number に変更
+  return items.find(({ id }) => Number(id) === itemId); // number === number
 };
 
 /**
@@ -178,7 +183,7 @@ export const findItem = (items: TreeItems, itemId: UniqueIdentifier) => {
  */
 export const buildTree = (flattenItems: FlattenedItems): TreeItems => {
   const root: TreeItem = {
-    id: "root",
+    id: 0,
     name: "root",
     expanded: false,
     children: [],
@@ -189,7 +194,7 @@ export const buildTree = (flattenItems: FlattenedItems): TreeItems => {
   for (const item of items) {
     const { id, children } = item;
     const parentId = item.parentId ?? root.id;
-    const parent = nodes[parentId] ?? findItem(items, parentId);
+    const parent = nodes[String(parentId)] ?? findItem(items, parentId);
 
     nodes[id] = { ...item, children };
     parent.children.push(item);
@@ -207,7 +212,7 @@ export const buildTree = (flattenItems: FlattenedItems): TreeItems => {
  */
 export const findItemDeep = (
   items: TreeItems,
-  itemId: UniqueIdentifier
+  itemId: number
 ): TreeItem | undefined => {
   for (const item of items) {
     const { id, children } = item;
@@ -235,10 +240,7 @@ export const findItemDeep = (
  * @param itemId
  * @returns
  */
-export const removeItem = (
-  items: TreeItems,
-  itemId: UniqueIdentifier
-): TreeItems => {
+export const removeItem = (items: TreeItems, itemId: number): TreeItems => {
   const newItems = [];
 
   for (const item of items) {
@@ -267,7 +269,7 @@ export const removeItem = (
  */
 export const setProperty = <T extends keyof TreeItem>(
   items: TreeItems,
-  itemId: UniqueIdentifier,
+  itemId: number,
   property: T,
   setter: (value: TreeItem[T]) => TreeItem[T]
 ) => {
@@ -309,10 +311,7 @@ const countChildren = (items: TreeItems, count = 0): number => {
  * @param id
  * @returns
  */
-export const getChildCount = (
-  items: TreeItems,
-  id: UniqueIdentifier
-): number => {
+export const getChildCount = (items: TreeItems, id: number): number => {
   const item = findItemDeep(items, id);
 
   return item ? countChildren(item.children) : 0;
@@ -327,9 +326,9 @@ export const getChildCount = (
  */
 export const removeChildrenOf = (
   items: FlattenedItems,
-  parentIdsToExclude: UniqueIdentifier[]
+  parentIdsToExclude: number[]
 ) => {
-  const excludeParentIds = new Set(parentIdsToExclude);
+  const excludeParentIds = new Set(parentIdsToExclude); // 型を明示
 
   return items.filter((item) => {
     const { parentId, id, children } = item;
@@ -345,3 +344,31 @@ export const removeChildrenOf = (
     return true;
   });
 };
+/**
+ * ツリー構造から指定されたIDのアイテムを再帰的に削除します。
+ * @param items - 処理対象の TreeItem の配列。
+ * @param idToRemove - 削除するアイテムのID。
+ * @returns 指定されたIDのアイテムが削除された新しい TreeItem の配列。
+ */
+export function removeItemDeep(
+  items: TreeItem[],
+  idToRemove: string | number // IDの型を string | number に変更
+): TreeItem[] {
+  return items.reduce((acc, item) => {
+    if (String(item.id) === String(idToRemove)) {
+      // IDを文字列として比較
+      return acc; // 削除対象のアイテムなので、結果に追加しない
+    }
+
+    if (item.children && item.children.length > 0) {
+      // 子アイテムがある場合は、子アイテムに対しても再帰的に削除処理を行う
+      const newChildren = removeItemDeep(item.children, idToRemove);
+      // 子アイテムが変更されたか、または元のアイテム自体が削除対象でなかった場合に結果に追加
+      acc.push({ ...item, children: newChildren });
+    } else {
+      // 子アイテムがない場合は、そのまま結果に追加
+      acc.push(item);
+    }
+    return acc;
+  }, [] as TreeItem[]);
+}

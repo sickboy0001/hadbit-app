@@ -1,6 +1,8 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
-import { supabase } from "@/utils/supabase/supabase";
+// import { supabase } from "@/utils/supabase/supabase";
+import { createClient } from "@/util/supabase/server";
+
+const supabase = await createClient();
 
 export const registUserInfo = async (
   user_id: number,

@@ -20,8 +20,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { createPortal } from "react-dom";
 
 import { getChildrenIds } from "./utils";
-import { TreeItem } from "./types";
 import { SortableTreeItem } from "./SortableTreeItem";
+import { TreeItem } from "@/types/habit/ui";
 
 const INDENTION_WIDTH = 20;
 
@@ -60,9 +60,10 @@ const dropAnimationConfig: DropAnimation = {
  */
 type SortableTreeProps = {
   defaultItems: TreeItem[];
-  onItemsChange: (items: TreeItem[]) => void; // ★ コールバック関数を受け取る Props
-  onRemoveItem: (id: string) => void;
-  onEditItem?: (id: string) => void;
+  // onItemsChange: (items: TreeItem[]) => void; // ★ コールバック関数を受け取る Props
+  onItemsChange: (items: TreeItem[]) => void;
+  onRemoveItem?: (id: number) => void;
+  onEditItem?: (id: number) => void;
 };
 
 /**
@@ -82,7 +83,10 @@ const SortableTree = (props: SortableTreeProps) => {
     sortedIds, // SortableContext に渡す、現在の順序でのアイテムID配列
     getDndContextProps, // DndContext に渡すプロパティを取得する関数
     getSortableTreeItemProps, // 各 SortableTreeItem に渡すプロパティを取得する関数
-  } = useSortableTree({ defaultItems, onItemsChange, onRemoveItem });
+  } = useSortableTree({ defaultItems, onItemsChange });
+  //, onRemoveItem
+  // console.log("[SortableTree] flattenedItems:", flattenedItems);
+  // console.log("[SortableTree] sortedIds:", sortedIds);
 
   const sensors = useSensors(useSensor(PointerSensor));
   const [isMounted, setIsMounted] = useState(false); // マウント状態を管理するstate
@@ -99,6 +103,7 @@ const SortableTree = (props: SortableTreeProps) => {
           <SortableTreeItem
             key={item.id}
             onEditItem={onEditItem}
+            onRemoveItem={onRemoveItem}
             {...getSortableTreeItemProps(item, INDENTION_WIDTH)}
           />
         ))}

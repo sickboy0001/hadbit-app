@@ -1,7 +1,8 @@
 # テーブルデザイン
 ## ER図
-[Alt text](er.drawio.png)
+![alt text](image.png)
 
+[原本](https://www.figma.com/design/j6MqagLNYSju7cH2SVUpvK/Zettelkasten_tool_-shadcn-ui?node-id=2102-1046&p=f&t=6oHssI3mLvlLrBt0-0)
 ## 補足
 ```
 対象の親を持つ
@@ -49,7 +50,7 @@ PT4:5を2の下に移動したとき
 
 | 列名       | 型                      | 主キー | NULL | デフォルト | 説明                                           |
 |------------|-------------------------|--------|------|------------|------------------------------------------------|
-| `id`       | serial                  | YES    | NO   |            | 一意のID（自動インクリメント）                     |
+| `item_id`       | serial                  | YES    | NO   |            | 一意のID（自動インクリメント）                     |
 | `parent_id`| INTEGER                 |        | YES  |            | 親ノードのID（`habit_item_tree`テーブルの`id`を参照） |
 | `order_no` | INTEGER                 |        | YES  |            | 同じ階層内での順序                               |
 

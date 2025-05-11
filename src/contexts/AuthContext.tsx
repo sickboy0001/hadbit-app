@@ -7,9 +7,6 @@ import React, {
   useContext,
   ReactNode,
 } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-// import { User } from "@supabase/supabase-js";
-import { Database } from "@/types/supabase"; // 必要に応じてパスを調整
 import { User } from "@/types/user";
 import { getUserNameComment, readUserId } from "@/app/actions/user/read";
 import { isSuperUser } from "@/lib/user";
@@ -48,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data.user.email
         );
         user.isSuperUser = isSuperUser(user.email);
-        console.log("AuthProvider: User details fetched:", user); // ★ デバッグログ追加
+        // console.log("AuthProvider: User details fetched:", user); // ★ デバッグログ追加
       }
 
       // setUser(data.user ?? null);
@@ -61,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         // ★ onAuthStateChange が呼ばれたときのログ
-        console.log("AuthProvider: Auth state changed:", _event, session);
+        // console.log("AuthProvider: Auth state changed:", _event, session);
         setUser(session?.user ?? null);
         setLoading(false); // 状態変化後もローディング解除
       }

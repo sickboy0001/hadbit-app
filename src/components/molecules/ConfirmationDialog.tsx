@@ -45,7 +45,9 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           {/* Propsで受け取ったキャンセル処理を実行 */}
           <AlertDialogCancel onClick={onCancel}>キャンセル</AlertDialogCancel>
           {/* Propsで受け取った確定処理を実行 */}
-          <AlertDialogAction onClick={onConfirm}>削除する</AlertDialogAction>
+          <AlertDialogAction onClick={onConfirm}>
+            {confiremButtonName}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -5,22 +5,21 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
-  Pencil,
   Trash2,
+  Pencil,
 } from "lucide-react";
-import { FlattenedItem } from "./types";
-import { Button } from "../ui/button";
+import { FlattenedItem } from "@/types/habit/ui";
 
 type SortableTreeItemProps = {
   item: FlattenedItem;
   depth: number;
+  onEditItem?: (id: number) => void;
+  onRemoveItem?: (id: number) => void;
   onExpand?: () => void;
   expanded?: boolean;
   indentationWidth: number;
   clone?: boolean;
   childrenCount?: number;
-  onRemove?: (id: string) => void;
-  onEditItem?: (id: string) => void;
 };
 
 const animateLayoutChanges: AnimateLayoutChanges = ({
@@ -33,11 +32,11 @@ export const SortableTreeItem = ({
   depth,
   onExpand,
   expanded,
+  onEditItem,
   indentationWidth,
   clone,
   childrenCount,
-  onRemove,
-  onEditItem,
+  onRemoveItem,
 }: SortableTreeItemProps) => {
   const {
     isDragging,
@@ -102,35 +101,27 @@ export const SortableTreeItem = ({
             </button>
           )}
           <span className="text-sm text-gray-800">{item.name}</span>
-          {onEditItem && ( // onEditItem が渡されている場合のみ表示
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation(); // イベントの伝播を止める (ドラッグ等に影響しないように)
-                onEditItem(item.id);
-              }}
-              aria-label={`Edit ${item.name}`}
+          {/* 編集ボタン (名前の横) */}
+          {!clone && onEditItem && (
+            <button
+              onClick={() => onEditItem(item.id)}
+              className="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors ml-2" // 名前との間にマージンを追加
+              aria-label="編集"
             >
-              <Pencil className="h-4 w-4" />
-            </Button>
+              <Pencil size={16} />
+            </button>
+          )}
+          {/* 削除ボタン (右端) */}
+          {!clone && onRemoveItem && (
+            <button
+              onClick={() => onRemoveItem(item.id)}
+              className="text-red-500 hover:text-red-700 p-1 rounded transition-colors ml-auto" // ml-auto で右端に配置
+              aria-label="削除"
+            >
+              <Trash2 size={16} />
+            </button>
           )}
         </div>
-        {/* 削除ボタン */}
-        {onRemove && ( // onRemove が渡された場合のみ表示
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-auto h-6 w-6 text-muted-foreground hover:text-destructive" // 右寄せ、スタイル調整
-            onClick={(e) => {
-              e.stopPropagation(); // ドラッグイベントなどと干渉しないように
-              onRemove(item.id);
-            }}
-            aria-label={`Delete ${item.name}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
       </div>
     </li>
   );

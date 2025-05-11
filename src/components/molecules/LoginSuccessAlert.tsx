@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export function LoginSuccessAlert() {
   const [isVisible, setIsVisible] = useState(false);
   const alertTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     // sessionStorage をチェックしてログイン成功メッセージを表示

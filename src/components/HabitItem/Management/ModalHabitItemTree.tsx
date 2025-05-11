@@ -1,9 +1,10 @@
+// src/components/HabitItem/Management/ModalHabitItem.tsx
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch"; // Checkbox を Switch に変更
 import { HabitItem } from "@/types/habit/habit_item";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 interface ModalHabitItemProps {
   item: Partial<HabitItem> | null; // 編集中のデータ
@@ -11,9 +12,16 @@ interface ModalHabitItemProps {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => void; // Input/Textarea の変更ハンドラ
   onCheckboxChange: (name: string, checked: boolean) => void; // Checkbox の変更ハンドラ
+  // item: TreeItem | null; // 編集対象のアイテムデータ、見つからない場合は null
+  // onItemChange: (updatedItem: Partial<TreeItem>) => void; // 変更を通知するコールバック
 }
 
-const ModalHabitItem: React.FC<ModalHabitItemProps> = ({
+// const ModalHabitItemTree: React.FC<ModalHabitItemProps> = ({
+//   item,
+//   onItemChange,
+// }) => {
+
+const ModalHabitItemTree: React.FC<ModalHabitItemProps> = ({
   item,
   onFormChange,
   onCheckboxChange,
@@ -23,8 +31,14 @@ const ModalHabitItem: React.FC<ModalHabitItemProps> = ({
     return <div>読み込み中...</div>; // または null
   }
 
+  if (!item) {
+    // item が null の場合は何も表示しないか、エラーメッセージを表示
+    return <div>編集対象のアイテムが見つかりません。</div>;
+  }
+
   return (
-    <div className="grid gap-4 py-4">
+    <div className="grid gap-4">
+      {/* 習慣名の編集 */}
       {/* フォーム要素 (Input, Textarea, Checkbox など) */}
       <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3">
         {/* ラベルと入力の間の gap と、行間の gap */}
@@ -90,4 +104,4 @@ const ModalHabitItem: React.FC<ModalHabitItemProps> = ({
   );
 };
 
-export default ModalHabitItem;
+export default ModalHabitItemTree;

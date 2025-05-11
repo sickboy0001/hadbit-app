@@ -1,6 +1,5 @@
 "use server";
 
-import { isSuperUser } from "@/lib/user";
 import { User } from "@/types/user";
 import { createClient } from "@/util/supabase/server";
 
@@ -42,6 +41,7 @@ export const getUserNameComment = async (
   // console.log(res);
   if (res === null) {
     if (email === undefined) {
+      console.log(error);
       return ["nanashi", "nanashi"];
     }
 
@@ -67,6 +67,8 @@ const InsertMailToId = async (email: string) => {
     },
   ]);
   if (error) {
+    console.log(res);
+    console.log(error);
     console.log("InsertMailToId:isert faild", error);
   }
 };
