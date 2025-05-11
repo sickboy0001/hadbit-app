@@ -21,7 +21,8 @@ export type NavItem = NavLinkItem | NavDropdownItem;
 // メニューデータ
 export const headerNavItems: NavItem[] = [
   { id: "start", type: "link", label: "Start Page", href: "/start" },
-  { id: "tree", type: "link", label: "test_tree", href: "/test/tree" }, // test_tree は一つにまとめました
+  { id: "tree", type: "link", label: "habit", href: "/habit/manager" }, // test_tree は一つにまとめました
+  { id: "tracker", type: "link", label: "tracker", href: "/habit/tracker" }, // test_tree は一つにまとめました
   { id: "about", type: "link", label: "About", href: "/about" },
   {
     id: "menu",

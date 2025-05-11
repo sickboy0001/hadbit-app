@@ -18,6 +18,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { ja } from "date-fns/locale";
+
 // Assuming Habit type is defined elsewhere and imported, or defined here if specific to this component
 type Habit = {
   id: string;
@@ -90,21 +102,64 @@ const HabitDisplayTable: React.FC<HabitDisplayTableProps> = ({
                 <TableCell
                   key={`${habit.id}-${index}`}
                   className="text-center p-0 h-[40px]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleHabitCompletion(habit.id, date);
+                  onClick={(_e) => {
+                    if (!isCompleted(habit, date)) {
+                      onToggleHabitCompletion(habit.id, date);
+                    }
                   }}
                 >
-                  {isCompleted(habit, date) && (
-                    <div className="flex justify-center h-full cursor-pointer">
-                      <Diamond
-                        className="h-4 w-4 fill-black"
-                        style={{ fill: "currentColor" }}
-                      />
-                    </div>
-                  )}
-                  {!isCompleted(habit, date) && (
-                    <div className="h-full cursor-pointer hover:bg-muted/50" />
+                  {isCompleted(habit, date) ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        asChild
+                        onClick={(e) => e.stopPropagation()} // Triggerのクリックがセルに伝播しないように
+                      >
+                        <div className="flex justify-center items-center h-full w-full cursor-pointer hover:bg-accent/50 rounded-sm">
+                          <Diamond
+                            className="h-4 w-4"
+                            style={{ fill: "currentColor" }}
+                          />
+                        </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        onClick={(e) => e.stopPropagation()} // MenuContent内のクリックもセルに伝播しないように
+                      >
+                        <DropdownMenuLabel className="font-bold">
+                          {habit.name}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            // TODO: 編集機能の実装
+                            alert(
+                              `「${habit.name}」の${format(date, "M月d日", {
+                                locale: ja,
+                              })}の記録を編集します（未実装）`
+                            );
+                            console.log("Edit log for:", habit.name, date);
+                          }}
+                        >
+                          編集
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            if (isCompleted(habit, date)) {
+                              onToggleHabitCompletion(habit.id, date); // これで取り消される
+                              toast.info(
+                                `「${habit.name}」の${format(date, "M月d日", {
+                                  locale: ja,
+                                })}の記録を削除しました`
+                              );
+                            }
+                          }}
+                          className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                        >
+                          削除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <div className="h-full w-full cursor-pointer hover:bg-muted/50" />
                   )}
                 </TableCell>
               );

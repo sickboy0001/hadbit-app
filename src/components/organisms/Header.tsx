@@ -58,11 +58,15 @@ export function Header() {
         <LogoutSuccessAlert /> {/* ★ ログアウト用アラートをレンダリング */}
         <LoginSuccessAlert /> {/* ★ 新しいコンポーネントをレンダリング */}
         {/* 左側のロゴやサイトタイトルなど */}
-        <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            {/* <Icons.logo className="h-6 w-6" /> */}
-            <span className="hidden font-bold sm:inline-block">Hadbit App</span>
-          </Link>
+        <div className="flex flex-1 items-center justify-end">
+          <div className="mr-4 hidden md:flex">
+            <Link href="/" className="mr-6 flex items-center space-x-2">
+              {/* <Icons.logo className="h-6 w-6" /> */}
+              <span className="hidden font-bold sm:inline-block">
+                Hadbit App
+              </span>
+            </Link>
+          </div>
         </div>
         {/* 中央のナビゲーションメニュー */}
         <div className="flex flex-1 items-center justify-end">

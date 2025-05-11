@@ -25,11 +25,10 @@ import {
   flattenTreeForOrderUpdate,
 } from "@/util/treeConverter";
 const ManagementTree: React.FC = () => {
-  const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
-
-  const { user, loading: authLoading } = useAuth(); // ★ 認証状態を取得
   const [isPending, startTransition] = useTransition(); // ★ トランジションフック
+  const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
   const [treeItems, setTreeItems] = useState<TreeItem[]>([]); // ★ 初期値を空配列に変更
+  const { user, loading: authLoading } = useAuth(); // ★ 認証状態を取得
 
   const [newItemName, setNewItemName] = useState<string>(""); // Input用のstateを追加
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
@@ -42,7 +41,6 @@ const ManagementTree: React.FC = () => {
   const [editedItemData, setEditedItemData] =
     useState<Partial<HabitItemWithTreeInfo> | null>(null);
 
-  // ★ サーバーアクションの結果を反映するためにリストを再取得する関数
   const refreshItems = useCallback(() => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
     if (user === undefined) return; // ユーザーIDがない場合は何もしない

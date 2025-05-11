@@ -1,20 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { format, addDays, subDays, isEqual } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
 import PresetButtonsSection from "./PresetButtonsSection";
 import DateControls from "./DateControls";
 import HabitDisplayTable from "./HabitDisplayTable";
-// import {
-//   createSampleData,
-//   PRESET_HABIT_BUTTONS,
-//   Habit,
-// } from ".,/data/habitData"; // サンプルデータと型をインポート
-import { findHabitById, getParentName } from "@/lib/habit";
-import { createSampleData, PRESET_HABIT_BUTTONS } from "./dummy";
-import { Habit } from "@/types/habit/ui";
+// import { findHabitById, getParentName } from "@/lib/habit";
+// import { createSampleData, PRESET_HABIT_BUTTONS } from "./dummy";
+import { Habit, TreeItem } from "@/types/habit/ui";
+import { HabitItem } from "@/types/habit/habit_item";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  readHabitItems,
+  readHabitItemTreeWithUserId,
+} from "@/app/actions/habit_items";
+import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 
 export type PresetDisplayItem =
   | { type: "button"; id: string; name: string; originalName: string }
@@ -31,24 +33,16 @@ const DAY_DEF = 20;
 
 export default function HabitTracker() {
   // const { toast } = useToast();
-  const [habits, setHabits] = useState<Habit[]>(createSampleData());
+  const [, startTransition] = useTransition(); // ★ トランジションフック
+  const [, setHabitItems] = useState<HabitItem[]>([]);
+  const [treeItems, setTreeItems] = useState<TreeItem[]>([]); // ★ 初期値を空配列に変更
+  const { user, loading: authLoading } = useAuth(); // ★ 認証状態を取得
+
+  const [habits, setHabits] = useState<Habit[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<
     Record<string, boolean>
-  >({
-    exercise: true,
-    gym: true,
-    cardio: true,
-    strength: true,
-    stairs: true,
-    squat: true,
-    measurement: true,
-    weight: true,
-    learning: true,
-    schoo: true,
-    programming: true,
-    frontend: true,
-  });
-  console.log(habits);
+  >({}); // 初期値を空オブジェクトに変更
+
   // Default date range: Today and 13 days after (14 days total)
   const today = new Date();
   const defaultEndDate = new Date();
@@ -56,16 +50,88 @@ export default function HabitTracker() {
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
 
+  const refreshItems = useCallback(() => {
+    if (!user?.userid) return; // ユーザーIDがない場合は何もしない
+    if (user === undefined) return; // ユーザーIDがない場合は何もしない
+    const userId = user.userid;
+    startTransition(async () => {
+      try {
+        const nowHabitItems = await readHabitItems(userId);
+        const nowHabitItemTree = await readHabitItemTreeWithUserId(userId);
+        setHabitItems(nowHabitItems);
+
+        const nowTreeItems = buildTreeFromHabitAndParentReration(
+          nowHabitItems,
+          nowHabitItemTree
+        );
+        console.log("nowTreeItems", nowTreeItems);
+        setTreeItems(nowTreeItems);
+      } catch (error) {
+        toast.error("リストの読み込みに失敗しました。");
+        console.error("Failed to fetch habit items:", error);
+      }
+    });
+  }, [user]); // user.userid が変わったら再生成
+
+  // treeItems から Habit[] を生成する再帰関数
+  const createHabitsFromTreeItemsRecursive = useCallback(
+    (items: TreeItem[], parentId?: string, level: number = 0): Habit[] => {
+      return items.map((item) => {
+        const habit: Habit = {
+          id: String(item.id), // IDを文字列に変換
+          name: item.name,
+          parentId: parentId,
+          completedDates: [], // 実績は空で初期化
+          level: level,
+        };
+        if (item.children && item.children.length > 0) {
+          habit.children = createHabitsFromTreeItemsRecursive(
+            // 再帰呼び出しなので、useCallback内で自分自身を呼ぶのはOK
+            item.children,
+            String(item.id),
+            level + 1
+          );
+        }
+        return habit;
+      });
+    },
+    [] // この関数自体は外部のstateやpropsに依存していないため、依存配列は空
+  );
+
+  useEffect(() => {
+    if (user?.userid) {
+      refreshItems();
+    }
+  }, [user?.userid, refreshItems]); // refreshItems も依存配列に追加
+
+  useEffect(() => {
+    if (treeItems.length > 0) {
+      const newHabits = createHabitsFromTreeItemsRecursive(treeItems);
+      setHabits(newHabits);
+
+      // expandedCategories も treeItems ベースで初期化する (デフォルトで全て展開)
+      const initialExpanded: Record<string, boolean> = {};
+      const setInitialExpandedRecursively = (items: TreeItem[]) => {
+        items.forEach((item) => {
+          if (item.children && item.children.length > 0) {
+            initialExpanded[String(item.id)] = true; // デフォルトで展開
+            setInitialExpandedRecursively(item.children);
+          }
+        });
+      };
+      setInitialExpandedRecursively(treeItems);
+      setExpandedCategories(initialExpanded);
+    }
+  }, [treeItems, createHabitsFromTreeItemsRecursive]);
+
   // Generate dates for the specified range
   const generateDates = () => {
     const dates: Date[] = [];
     let currentDate = new Date(startDate);
-
     while (currentDate <= endDate) {
       dates.push(new Date(currentDate));
       currentDate = addDays(currentDate, 1);
     }
-
     return dates;
   };
 
@@ -137,7 +203,6 @@ export default function HabitTracker() {
             date.getMonth(),
             date.getDate()
           );
-
           const isAlreadyCompleted = habit.completedDates.some(
             (completedDate) =>
               isEqual(
@@ -187,6 +252,20 @@ export default function HabitTracker() {
       today.getDate()
     );
 
+    // findHabitById をローカルで定義 (またはインポート元を変更)
+    const findHabitById = (
+      habitsToSearch: Habit[],
+      id: string
+    ): Habit | undefined => {
+      for (const habit of habitsToSearch) {
+        if (habit.id === id) return habit;
+        if (habit.children) {
+          const foundInChildren = findHabitById(habit.children, id);
+          if (foundInChildren) return foundInChildren;
+        }
+      }
+      return undefined;
+    };
     // Find the habit
     const habit = findHabitById(habits, habitId);
     if (!habit || !habit.completedDates) return;
@@ -203,18 +282,18 @@ export default function HabitTracker() {
           todayDate
         )
     );
-
-    // Toggle completion
-    toggleHabitCompletion(habitId, today);
-
-    toast.success(
-      isAlreadyCompleted
-        ? `${habitName}を取り消しました`
-        : `${habitName}を記録しました`,
-      {
+    if (isAlreadyCompleted) {
+      // 既に記録されている場合は、その旨を通知
+      toast.info(`${habitName}は既に記録済みです`, {
         description: `${format(today, "yyyy年M月d日", { locale: ja })}`,
-      }
-    );
+      });
+    } else {
+      // まだ記録されていない場合は、記録を実行
+      toggleHabitCompletion(habitId, today);
+      toast.success(`${habitName}を記録しました`, {
+        description: `${format(today, "yyyy年M月d日", { locale: ja })}`,
+      });
+    }
   };
 
   // Get month label for a date
@@ -227,122 +306,83 @@ export default function HabitTracker() {
     return date.getDate() === 1;
   };
 
-  // Group preset buttons by parent category
-  const groupedButtons = PRESET_HABIT_BUTTONS.reduce<NestedGroupedButtons>(
-    (acc, presetButton) => {
-      const directParentHabitInSample = findHabitById(
-        habits,
-        presetButton.parentId
-      );
-
-      if (directParentHabitInSample) {
-        let topLevelParentId: string;
-        let currentChildrenArray: PresetDisplayItem[];
-
-        if (directParentHabitInSample.parentId) {
-          // プリセットボタンの親が、さらに親を持つ場合 (例: ジム訪問の親がジム、ジムの親が運動)
-          const grandParentHabitInSample = findHabitById(
-            habits,
-            directParentHabitInSample.parentId
-          );
-          if (grandParentHabitInSample) {
-            topLevelParentId = grandParentHabitInSample.id; // 例: "exercise"
-            if (!acc[topLevelParentId]) {
-              acc[topLevelParentId] = [];
-            }
-            // 中間カテゴリ (例: "gym") を探すか作成
-            let middleCategory = acc[topLevelParentId].find(
-              (item) =>
-                item.type === "category" &&
-                item.id === directParentHabitInSample.id
-            ) as Extract<PresetDisplayItem, { type: "category" }> | undefined;
-
-            if (!middleCategory) {
-              middleCategory = {
-                type: "category",
-                id: directParentHabitInSample.id,
-                name: directParentHabitInSample.name,
-                children: [],
-              };
-              acc[topLevelParentId].push(middleCategory);
-            }
-            currentChildrenArray = middleCategory.children;
-          } else {
-            // 祖父母が見つからない場合は、直接の親をトップレベルとして扱う (データ不整合の可能性)
-            topLevelParentId = directParentHabitInSample.id;
-            if (!acc[topLevelParentId]) {
-              acc[topLevelParentId] = [];
-            }
-            currentChildrenArray = acc[topLevelParentId];
-          }
-        } else {
-          // プリセットボタンの親がトップレベルの場合 (例: 散歩の親が運動)
-          topLevelParentId = directParentHabitInSample.id; // 例: "exercise"
-          if (!acc[topLevelParentId]) {
-            acc[topLevelParentId] = [];
-          }
-          currentChildrenArray = acc[topLevelParentId];
-        }
-
-        currentChildrenArray.push({
+  // Helper function to convert TreeItem[] to PresetDisplayItem[] for PresetButtonsSection
+  const mapTreeItemsToPresetDisplayItems = (
+    items: TreeItem[]
+  ): PresetDisplayItem[] => {
+    return items.map((item) => {
+      const hasChildren = item.children && item.children.length > 0;
+      if (hasChildren) {
+        return {
+          type: "category",
+          id: String(item.id),
+          name: item.name,
+          children: mapTreeItemsToPresetDisplayItems(item.children!), // Recursive call
+        };
+      } else {
+        return {
           type: "button",
-          id: presetButton.id,
-          name: presetButton.name, // ボタン名は元のシンプルな名前
-          originalName: presetButton.name,
-        });
+          id: String(item.id),
+          name: item.name,
+          originalName: item.name,
+        };
       }
-      // PRESET_HABIT_BUTTONS の parentId が habits データにない場合は無視 (またはエラー処理)
+    });
+  };
+
+  // Group preset buttons using treeItems
+  const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
+    (acc, topLevelItem) => {
+      // topLevelItem.id is the key for the group (e.g., "1" for "運動")
+      // topLevelItem.children are the items within that group (e.g., "ジム", "散歩")
+      // These children can be buttons or sub-categories
+      acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
+        topLevelItem.children || []
+      );
       return acc;
     },
     {}
   );
+
+  // Get parent name from treeItems for PresetButtonsSection card titles
+  const getParentNameFromTree = (parentId: string): string => {
+    const parentIdNum = parseInt(parentId, 10);
+    // treeItems はトップレベルのアイテムの配列なので、IDが一致するものを探す
+    const foundItem = treeItems.find((item) => item.id === parentIdNum);
+    return foundItem?.name || "カテゴリ不明";
+  };
+
   const isCompleted = (habit: Habit, date: Date): boolean => {
-    // この関数は HabitDisplayTable に渡すか、そこで再定義
-
-    if (!habit.completedDates) {
+    if (!habit.completedDates || habit.completedDates.length === 0) {
       return false;
     }
-    if (habit.completedDates.length === 0) {
-      return false;
-    }
-
-    // 比較対象の日付の時刻部分を0に正規化
     const targetDateNormalized = new Date(
       date.getFullYear(),
       date.getMonth(),
       date.getDate()
     );
-    console.log(
-      `[isCompleted] Normalized target date: ${targetDateNormalized.toLocaleDateString()}`
-    );
-
-    const found = habit.completedDates.some((completedDate) => {
-      // completedDates 内の日付も時刻部分を0に正規化して比較
+    return habit.completedDates.some((completedDate) => {
       const completedDateNormalized = new Date(
         completedDate.getFullYear(),
         completedDate.getMonth(),
         completedDate.getDate()
       );
-      console.log(
-        `[isCompleted] Comparing: ${completedDateNormalized.toLocaleDateString()} with ${targetDateNormalized.toLocaleDateString()}`
-      );
       return isEqual(completedDateNormalized, targetDateNormalized);
     });
-
-    console.log(
-      `[isCompleted] Result for "${
-        habit.name
-      }" on ${date.toLocaleDateString()}: ${found}`
-    );
-    return found;
   };
 
+  if (
+    authLoading ||
+    (user?.userid && treeItems.length === 0 && habits.length === 0)
+  ) {
+    return <div className="p-4 text-center">読み込み中...</div>;
+  }
   return (
     <div className="space-y-6">
       <PresetButtonsSection
         groupedButtons={groupedButtons}
         onToggleHabit={toggleHabitForToday}
-        getParentName={(id) => getParentName(habits, id) || "カテゴリ不明"}
+        getParentName={getParentNameFromTree} // 更新されたゲッター関数を使用
       />
 
       <DateControls
@@ -355,16 +395,15 @@ export default function HabitTracker() {
       />
 
       <HabitDisplayTable
-        habits={habits}
+        habits={habits} // treeItemsから生成されたhabitsを使用
         dates={dates}
         expandedCategories={expandedCategories}
         onToggleCategory={toggleCategory}
         onToggleHabitCompletion={toggleHabitCompletion}
-        isCompleted={isCompleted} // isCompleted を渡す
-        getCompletedLeafHabits={getCompletedLeafHabits} // getCompletedLeafHabits を渡す
-        // isAnyLeafCompleted は HabitDisplayTable 内で isCompleted と getCompletedLeafHabits を使って計算可能
-        getMonthLabel={getMonthLabel} // テーブルヘッダー用
-        isFirstOfMonth={isFirstOfMonth} // テーブルヘッダー用
+        isCompleted={isCompleted}
+        getCompletedLeafHabits={getCompletedLeafHabits}
+        getMonthLabel={getMonthLabel}
+        isFirstOfMonth={isFirstOfMonth}
       />
     </div>
   );

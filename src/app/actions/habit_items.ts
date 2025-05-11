@@ -88,10 +88,10 @@ export async function readHabitItemTreeWithUserId(
   //     })
   //     .filter((item): item is HabitItemTree => item !== undefined) || []; // undefined でない要素のみを残す
 
-  console.log(
-    "[Action] allTreeEntries before filtering:",
-    JSON.stringify(data, null, 2)
-  );
+  // console.log(
+  //   "[Action] allTreeEntries before filtering:",
+  //   JSON.stringify(data, null, 2)
+  // );
 
   const allTreeEntries: HabitItemTree[] =
     data?.flatMap((habitItemContainer) => {
@@ -114,10 +114,10 @@ export async function readHabitItemTreeWithUserId(
     }) || [];
 
   // return flattenedData as HabitItemTree[];
-  console.log(
-    "[Action] Final allTreeEntries:",
-    JSON.stringify(allTreeEntries, null, 2)
-  );
+  // console.log(
+  //   "[Action] Final allTreeEntries:",
+  //   JSON.stringify(allTreeEntries, null, 2)
+  // );
   return allTreeEntries;
 }
 
