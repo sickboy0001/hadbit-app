@@ -83,11 +83,8 @@ export default function HabitDone() {
   const [editingLogData, setEditingLogData] = useState<DbHabitLog | null>(null);
 
   // ダイアログ内で編集中の日付とコメントを管理するstate
-  const [editedDateInDialog, setEditedDateInDialog] = useState<
-    Date | undefined
-  >(undefined);
-  const [editedCommentInDialog, setEditedCommentInDialog] =
-    useState<string>("");
+  const [, setEditedDateInDialog] = useState<Date | undefined>(undefined);
+  const [, setEditedCommentInDialog] = useState<string>("");
   const refreshItems = useCallback(() => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
     if (user === undefined) return; // ユーザーIDがない場合は何もしない
@@ -322,14 +319,10 @@ export default function HabitDone() {
     });
   }, [
     editingLogData,
-    editedDateInDialog,
-    editedCommentInDialog,
     user,
     refreshHabitLogs,
     startTransition,
     getHabitItemNameById,
-    editedCommentInDialog,
-    editedDateInDialog,
   ]);
 
   if (authLoading || (user?.userid && treeItems.length === 0)) {
