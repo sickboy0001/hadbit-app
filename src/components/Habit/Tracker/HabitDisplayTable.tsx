@@ -29,16 +29,19 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
+import { Habit } from "@/types/habit/ui";
 
 // Assuming Habit type is defined elsewhere and imported, or defined here if specific to this component
-type Habit = {
-  id: string;
-  name: string;
-  parentId?: string;
-  children?: Habit[];
-  completedDates?: Date[];
-  level: number;
-};
+// type Habit = {
+//   id: string;
+//   name: string;
+//   parentId?: string;
+//   children?: Habit[];
+//   completedDates?: Date[];
+//   level: number;
+// };
+// Habit 型と HabitLog 型は HabitTracker.tsx からインポートまたはグローバル型として定義されている想定
+// HabitTracker.tsx で export されている型を使うのが望ましい
 
 interface HabitDisplayTableProps {
   habits: Habit[];
@@ -50,6 +53,7 @@ interface HabitDisplayTableProps {
   getCompletedLeafHabits: (habit: Habit, date: Date) => Habit[];
   getMonthLabel: (date: Date) => string;
   isFirstOfMonth: (date: Date) => boolean;
+  onOpenLogEditDialog: (habitId: string, date: Date) => void; // ★ 編集ダイアログ
 }
 
 const HabitDisplayTable: React.FC<HabitDisplayTableProps> = ({
@@ -62,12 +66,25 @@ const HabitDisplayTable: React.FC<HabitDisplayTableProps> = ({
   getCompletedLeafHabits,
   getMonthLabel,
   isFirstOfMonth,
+  onOpenLogEditDialog,
 }) => {
   // Recursive function to render habit rows (moved from HabitTracker)
   const renderHabitRows = (habit: Habit, currentDates: Date[]) => {
+    // ★ 追加: renderHabitRows が呼び出された習慣のIDと名前を確認
+    // console.log(
+    //   `[HabitDisplayTable] renderHabitRows called for habit ID: ${habit.id}, Name: ${habit.name}`
+    // );
+
     const isExpanded = expandedCategories[habit.id] || false;
     const hasChildren = habit.children && habit.children.length > 0;
     const isLeaf = !hasChildren;
+
+    // ★ 追加: isLeaf の評価を確認 (例: ID 46)
+    // if (habit.id === "46") {
+    //   console.log(
+    //     `[HabitDisplayTable] Habit ID ${habit.id} ('${habit.name}') - isLeaf: ${isLeaf}`
+    //   );
+    // }
 
     return (
       <React.Fragment key={habit.id}>
@@ -98,6 +115,9 @@ const HabitDisplayTable: React.FC<HabitDisplayTableProps> = ({
           </TableCell>
           {currentDates.map((date, index) => {
             if (isLeaf) {
+              // ★ 追加: isLeaf ブロックに入り、isCompleted を評価する直前の情報をログ出力 (例: ID 46)
+              let completedStatus = false; // isCompletedの結果を保持する変数
+              completedStatus = isCompleted(habit, date); // 他のIDの場合は通常通り呼び出し
               return (
                 <TableCell
                   key={`${habit.id}-${index}`}
@@ -108,7 +128,7 @@ const HabitDisplayTable: React.FC<HabitDisplayTableProps> = ({
                     }
                   }}
                 >
-                  {isCompleted(habit, date) ? (
+                  {completedStatus ? ( // isCompletedの結果を使用
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         asChild
@@ -130,13 +150,11 @@ const HabitDisplayTable: React.FC<HabitDisplayTableProps> = ({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onSelect={() => {
-                            // TODO: 編集機能の実装
-                            alert(
-                              `「${habit.name}」の${format(date, "M月d日", {
-                                locale: ja,
-                              })}の記録を編集します（未実装）`
-                            );
-                            console.log("Edit log for:", habit.name, date);
+                            // DropdownMenu が閉じる処理と Dialog が開く処理の競合を避けるため、
+                            // わずかに遅延させて Dialog を開く
+                            setTimeout(() => {
+                              onOpenLogEditDialog(habit.id, date);
+                            }, 0); // 0ms の遅延でも、次のイベントサイクルで実行される
                           }}
                         >
                           編集

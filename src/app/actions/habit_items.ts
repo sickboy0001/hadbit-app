@@ -73,25 +73,6 @@ export async function readHabitItemTreeWithUserId(
       data?.length || 0
     } items.`
   );
-  // Supabase の JOIN 結果はネストされているので、フラット化する
-  // const flattenedData =
-  //   data
-  //     ?.map((item) => {
-  //       // habit_item_tree が存在しない場合は undefined を返す。存在する場合は、item_id を habit_items.id から取得する
-  //       return item.habit_item_tree
-  //         ? {
-  //             item_id: item.habit_item_tree.item_id,
-  //             parent_id: item.habit_item_tree.parent_id,
-  //             order_no: item.habit_item_tree.order_no,
-  //           }
-  //         : undefined;
-  //     })
-  //     .filter((item): item is HabitItemTree => item !== undefined) || []; // undefined でない要素のみを残す
-
-  // console.log(
-  //   "[Action] allTreeEntries before filtering:",
-  //   JSON.stringify(data, null, 2)
-  // );
 
   const allTreeEntries: HabitItemTree[] =
     data?.flatMap((habitItemContainer) => {

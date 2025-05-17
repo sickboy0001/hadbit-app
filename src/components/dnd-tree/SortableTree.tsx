@@ -84,9 +84,6 @@ const SortableTree = (props: SortableTreeProps) => {
     getDndContextProps, // DndContext に渡すプロパティを取得する関数
     getSortableTreeItemProps, // 各 SortableTreeItem に渡すプロパティを取得する関数
   } = useSortableTree({ defaultItems, onItemsChange });
-  //, onRemoveItem
-  // console.log("[SortableTree] flattenedItems:", flattenedItems);
-  // console.log("[SortableTree] sortedIds:", sortedIds);
 
   const sensors = useSensors(useSensor(PointerSensor));
   const [isMounted, setIsMounted] = useState(false); // マウント状態を管理するstate

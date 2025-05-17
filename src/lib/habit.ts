@@ -21,7 +21,7 @@ export const findAllLeafHabits = (habits: Habit[]): Habit[] => {
   const leafHabits: Habit[] = [];
   const traverse = (habit: Habit) => {
     if (!habit.children || habit.children.length === 0) {
-      if (habit.completedDates) {
+      if (habit.logs) {
         // completedDates があるもののみを対象とする
         leafHabits.push(habit);
       }

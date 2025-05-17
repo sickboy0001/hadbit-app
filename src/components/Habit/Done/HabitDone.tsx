@@ -1,0 +1,429 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import { format, addDays, isEqual, startOfDay } from "date-fns";
+import { ja } from "date-fns/locale";
+import { toast } from "sonner"; // sonner から toast をインポート
+
+// import { findHabitById, getParentName } from "@/lib/habit";
+// import { createSampleData, PRESET_HABIT_BUTTONS } from "./dummy";
+import { TreeItem } from "@/types/habit/ui";
+import DialogEdit from "@/components/molecules/DialogEdit"; // DialogEdit をインポート
+import { HabitItem } from "@/types/habit/habit_item";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  readHabitItems,
+  readHabitItemTreeWithUserId,
+} from "@/app/actions/habit_items";
+import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
+
+import PresetButtonsSection from "@/components/Habit/organisms/PresetButtonsSection";
+import {
+  mapTreeItemsToPresetDisplayItems, // 新しいファイルからインポート
+} from "@/util/habitTreeConverters";
+import {
+  DbHabitLog,
+  insertHabitLog,
+  readDbHabitLogsByPeriod,
+  updateHabitLog,
+} from "@/app/actions/habit_logs";
+import { formatUtcToJstString } from "@/lib/datetime";
+import { parseISO } from "date-fns/parseISO"; // ★ parseISO をインポート
+import { Card } from "@/components/ui/card"; // ★ Card コンポーネントをインポート
+import { PencilIcon } from "lucide-react"; // ★ 編集アイコンをインポート
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"; // ★ Table コンポーネントをインポート
+import { Button } from "@/components/ui/button";
+import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
+export type PresetDisplayItem =
+  | { type: "button"; id: string; name: string; originalName: string }
+  | {
+      type: "category";
+      id: string;
+      name: string;
+      children: PresetDisplayItem[];
+    };
+
+export type NestedGroupedButtons = Record<string, PresetDisplayItem[]>;
+
+const DAY_DEF = 20;
+
+export default function HabitDone() {
+  const [, startTransition] = useTransition(); // ★ トランジションフック
+  const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
+  const [treeItems, setTreeItems] = useState<TreeItem[]>([]); // ★ 初期値を空配列に変更
+  const { user, loading: authLoading } = useAuth(); // ★ 認証状態を取得
+
+  const [habitlogs, setHabitLogs] = useState<DbHabitLog[]>([]);
+
+  // ★ defaultStartDate と defaultEndDate を useMemo でメモ化
+  const defaultStartDate = useMemo(() => {
+    const today = new Date();
+    return addDays(today, -DAY_DEF);
+  }, []); // 空の依存配列で、初回レンダリング時のみ計算
+
+  const defaultEndDate = useMemo(() => {
+    return new Date();
+  }, []); // 空の依存配列で、初回レンダリング時のみ計算
+
+  // --- 編集ダイアログ関連の状態 ---
+  const [isLogEditDialogOpen, setIsLogEditDialogOpen] = useState(false);
+  const [editingLogData, setEditingLogData] = useState<DbHabitLog | null>(null);
+
+  // ダイアログ内で編集中の日付とコメントを管理するstate
+  const [editedDateInDialog, setEditedDateInDialog] = useState<
+    Date | undefined
+  >(undefined);
+  const [editedCommentInDialog, setEditedCommentInDialog] =
+    useState<string>("");
+  const refreshItems = useCallback(() => {
+    if (!user?.userid) return; // ユーザーIDがない場合は何もしない
+    if (user === undefined) return; // ユーザーIDがない場合は何もしない
+    const userId = user.userid;
+    startTransition(async () => {
+      try {
+        const nowHabitItems = await readHabitItems(userId);
+        const nowHabitItemTree = await readHabitItemTreeWithUserId(userId);
+        setHabitItems(nowHabitItems);
+
+        const nowTreeItems = buildTreeFromHabitAndParentReration(
+          nowHabitItems,
+          nowHabitItemTree
+        );
+        console.log("nowTreeItems", nowTreeItems);
+        setTreeItems(nowTreeItems);
+      } catch (error) {
+        toast.error("リストの読み込みに失敗しました。");
+        console.error("Failed to fetch habit items:", error);
+      }
+    });
+  }, [user]); // user.userid が変わったら再生成
+
+  const refreshHabitLogs = useCallback(async () => {
+    if (!user?.userid) return; // ユーザーIDがない場合は何もしない
+    if (user === undefined) return; // ユーザーIDがない場合は何もしない
+    const userId = user.userid;
+    // startDate と endDate を YYYY-MM-DD 形式の文字列に変換
+    const formattedStartDate = format(defaultStartDate, "yyyy-MM-dd");
+    const formattedEndDate = format(defaultEndDate, "yyyy-MM-dd");
+
+    startTransition(async () => {
+      try {
+        const dbLogs = await readDbHabitLogsByPeriod(
+          // dbLogs はDBから取得したログデータの配列
+          userId,
+          formattedStartDate,
+          formattedEndDate
+        );
+        // dbLogs を done_at (降順) と updated_at (降順) でソート
+        const sortedDbLogs = dbLogs.sort((a, b) => {
+          // まず done_at で比較 (新しいものが先)
+          const dateComparison =
+            new Date(b.done_at).getTime() - new Date(a.done_at).getTime();
+          if (dateComparison !== 0) {
+            return dateComparison;
+          }
+          // done_at が同じ場合は updated_at で比較 (新しいものが先)
+          return (
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          );
+        });
+
+        setHabitLogs(sortedDbLogs);
+
+        console.log("habitlogs", dbLogs);
+      } catch (error) {
+        toast.error("習慣記録の読み込みに失敗しました。");
+        console.error("Failed to fetch habit logs:", error);
+      }
+    });
+  }, [user, startTransition, defaultStartDate, defaultEndDate]); // ★ defaultStartDate と defaultEndDate を追加
+
+  useEffect(() => {
+    if (user?.userid) {
+      refreshItems();
+    }
+  }, [user?.userid, refreshItems]); // refreshItems も依存配列に追加
+
+  useEffect(() => {
+    if (user?.userid) {
+      refreshHabitLogs();
+    }
+  }, [user?.userid, defaultStartDate, defaultEndDate, refreshHabitLogs]); // ★ user?.userid を追加
+
+  // item_id (number) から習慣名 (string) を取得するヘルパー関数
+  const getHabitItemNameById = useCallback(
+    (itemId: number): string => {
+      const foundHabitItem = habitItems.find((item) => item.id === itemId);
+      return foundHabitItem ? foundHabitItem.name : "不明な習慣";
+    },
+    [habitItems] // habits state が変更されたら再生成
+  );
+
+  // findHabitById をローカルで定義 (またはインポート元を変更)
+  // const findHabitById = (
+  //   habitsToSearch: Habit[],
+  //   id: string
+  // ): Habit | undefined => {
+  //   for (const habit of habitsToSearch) {
+  //     if (habit.id === id) return habit;
+  //     if (habit.children) {
+  //       const foundInChildren = findHabitById(habit.children, id);
+  //       if (foundInChildren) return foundInChildren;
+  //     }
+  //   }
+  //   return undefined;
+  // };
+
+  // Toggle habit for today
+  const toggleHabitForToday = useCallback(
+    async (habitId: string, habitName: string) => {
+      const today = new Date();
+      const todayDate = startOfDay(today);
+
+      const formattedDate = format(todayDate, "yyyy-MM-dd");
+
+      if (!user?.userid) {
+        toast.error("ユーザー情報が見つかりません。");
+        return;
+      }
+      const userId = user.userid;
+      const itemId = parseInt(habitId, 10);
+
+      if (isNaN(itemId)) {
+        toast.error("無効な習慣IDです。");
+        return;
+      }
+
+      // 既に今日記録されているかチェック (habitlogs state を使用)
+      const isAlreadyCompletedToday = habitlogs.some(
+        (log) =>
+          log.item_id === itemId &&
+          isEqual(startOfDay(parseISO(log.done_at)), todayDate)
+      );
+
+      if (isAlreadyCompletedToday) {
+        toast.info(`「${habitName}」は既に本日記録済みです。`);
+        return;
+      }
+
+      startTransition(async () => {
+        try {
+          const newLog = await insertHabitLog(
+            userId,
+            itemId,
+            formattedDate,
+            null
+          ); // コメントはnull
+          if (newLog) {
+            toast.success(`「${habitName}」を記録しました。`, {
+              description: `${format(today, "yyyy年M月d日", { locale: ja })}`,
+            });
+            await refreshHabitLogs(); // ログリストを再読み込みしてUIを更新
+          } else {
+            toast.error("記録の追加に失敗しました。");
+          }
+        } catch (error) {
+          console.error("Failed to insert habit log for today:", error);
+          toast.error("記録の追加中にエラーが発生しました。");
+        }
+      });
+    },
+    [user, habitlogs, refreshHabitLogs, startTransition] // 依存配列を更新
+  );
+
+  const handleDialogClose = (open: boolean) => {
+    setIsLogEditDialogOpen(open);
+    if (!open) {
+      setEditingLogData(null);
+      setEditedDateInDialog(undefined);
+      setEditedCommentInDialog("");
+    }
+  };
+
+  // Group preset buttons using treeItems
+  const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
+    (acc, topLevelItem) => {
+      acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
+        topLevelItem.children || []
+      );
+      return acc;
+    },
+    {}
+  );
+
+  // Get parent name from treeItems for PresetButtonsSection card titles
+  const getParentNameFromTree = (parentId: string): string => {
+    const parentIdNum = parseInt(parentId, 10);
+    const foundItem = treeItems.find((item) => item.id === parentIdNum);
+    return foundItem?.name || "カテゴリ不明";
+  };
+
+  const handleSaveLogEdit = useCallback(async () => {
+    console.log("handleSaveLogEdit called editingLogData:", editingLogData);
+    if (!editingLogData) {
+      toast.error("保存に必要な情報が不足しています。");
+      return;
+    }
+    if (!user?.userid) {
+      toast.error("ユーザー情報が見つかりません。");
+      return;
+    }
+
+    // editingLogData (DbHabitLog型) から必要な情報を取得
+    const { id: logIdToUpdate, item_id } = editingLogData;
+    const habitName = getHabitItemNameById(item_id); // 習慣名を取得
+
+    startTransition(async () => {
+      try {
+        const updatedLog = await updateHabitLog(
+          logIdToUpdate,
+          editingLogData.done_at,
+          editingLogData.comment || ""
+        );
+        if (updatedLog) {
+          toast.success(`「${habitName}」の記録を更新しました。`, {
+            description: `${format(editingLogData.done_at, "yyyy年M月d日", {
+              locale: ja,
+            })}${
+              editingLogData.comment
+                ? ` - ${editingLogData.comment.substring(0, 20)}...`
+                : ""
+            }`,
+          });
+        } else {
+          toast.error("記録の更新に失敗しました。");
+        }
+      } catch (error) {
+        console.error("Failed to save habit log edit:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "不明なエラー";
+        toast.error(`記録の更新中にエラーが発生しました: ${errorMessage}`);
+      } finally {
+        // 成功・失敗に関わらず、UIを最新の状態に同期し、ダイアログを閉じる
+        await refreshHabitLogs();
+        setIsLogEditDialogOpen(false);
+        setEditingLogData(null);
+        setEditedDateInDialog(undefined);
+        setEditedCommentInDialog("");
+      }
+    });
+  }, [
+    editingLogData,
+    editedDateInDialog,
+    editedCommentInDialog,
+    user,
+    refreshHabitLogs,
+    startTransition,
+    getHabitItemNameById,
+    editedCommentInDialog,
+    editedDateInDialog,
+  ]);
+
+  if (authLoading || (user?.userid && treeItems.length === 0)) {
+    return <div className="p-4 text-center">読み込み中...</div>;
+  }
+  const handleOpenLogEditDialogForDone = (logToEdit: DbHabitLog) => {
+    console.log("[HabitDone] Opening edit dialog for log:", logToEdit);
+    setEditingLogData(logToEdit); // 編集対象のログオブジェクト全体をセット
+    // ダイアログの初期値をセット
+    setEditedDateInDialog(startOfDay(parseISO(logToEdit.done_at)));
+    setEditedCommentInDialog(logToEdit.comment || "");
+    setIsLogEditDialogOpen(true); // ダイアログを開く
+  };
+
+  return (
+    <div className="space-y-6">
+      <PresetButtonsSection
+        groupedButtons={groupedButtons}
+        onToggleHabit={toggleHabitForToday}
+        getParentName={getParentNameFromTree} // 更新されたゲッター関数を使用
+      />
+
+      {/* DialogEdit を使用して編集ダイアログをレンダリング */}
+      {editingLogData && ( // editingLogData がある場合のみ DialogEdit をレンダリング（タイトル設定のため）
+        <DialogEdit
+          open={isLogEditDialogOpen}
+          onOpenChange={handleDialogClose}
+          // ★ タイトルを編集。editingLogData.item_id から習慣名を取得
+          title={`「${
+            editingLogData ? getHabitItemNameById(editingLogData.item_id) : ""
+          }」の記録を編集`}
+          onSave={handleSaveLogEdit}
+        >
+          <ModalDbHabitLogEditForm
+            dbHabitlog={editingLogData}
+            setDbHabitlog={setEditingLogData}
+          />
+        </DialogEdit>
+      )}
+      {/* ★ 習慣記録のテーブルを表示 */}
+      <Card className="overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px] font-bold">習慣名</TableHead>
+              <TableHead className="w-[150px] font-bold">実行日</TableHead>
+              <TableHead className="font-bold">コメント</TableHead>
+              <TableHead className="w-[170px] font-bold">登録日時</TableHead>
+              <TableHead className="w-[170px] font-bold">更新日時</TableHead>
+
+              <TableHead className="w-[80px] text-right font-bold">
+                操作
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {habitlogs.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6} // ★ カラム数に合わせて colSpan を変更
+                  className="text-center text-muted-foreground"
+                >
+                  記録はありません。
+                </TableCell>
+              </TableRow>
+            ) : (
+              habitlogs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>{getHabitItemNameById(log.item_id)}</TableCell>
+                  <TableCell>
+                    {format(parseISO(log.done_at), "yyyy年M月d日", {
+                      locale: ja,
+                    })}
+                  </TableCell>
+                  <TableCell className="whitespace-pre-wrap">
+                    {log.comment}
+                  </TableCell>
+                  <TableCell>{formatUtcToJstString(log.created_at)}</TableCell>
+                  <TableCell>{formatUtcToJstString(log.updated_at)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenLogEditDialogForDone(log)}
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+    </div>
+  );
+}

@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS public.habit_logs (
     item_id INTEGER NOT NULL,
     done_at TIMESTAMP WITHOUT TIME ZONE, -- 実行日時 (デフォルトは不要かも)
     updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
-    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP -- 型とデフォルト値を変更
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
+    comment TEXT
 );
 -- ユーザーIDと項目IDでの検索を高速化するためのインデックス
 CREATE INDEX IF NOT EXISTS idx_habit_logs_user_id ON public.habit_logs (user_id);
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS public.habit_item_fields  (
     is_numeric BOOLEAN DEFAULT FALSE, -- デフォルト値を追加
     updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
-    comment TEXT
+
     -- FOREIGN KEY (item_id) REFERENCES public.habit_item(id) ON DELETE CASCADE -- 項目削除時に入力定義も削除
 );
 -- 項目IDでの検索を高速化するためのインデックス

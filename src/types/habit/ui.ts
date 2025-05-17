@@ -28,8 +28,15 @@ export type Habit = {
   name: string;
   parentId?: string;
   children?: Habit[];
-  completedDates?: Date[]; // 完了日を記録する配列
+  // completedDates?: Date[]; // 完了日を記録する配列 -> logs に変更
+  logs: HabitLog[]; // 完了日とコメントを記録する配列
   level: number; // 階層の深さ
+};
+
+// HabitLog 型定義 (実績の日付とコメント)
+export type HabitLog = {
+  date: Date;
+  comment?: string;
 };
 
 // PresetButton 型定義 (PresetButtonsSection.tsx で使われる想定)

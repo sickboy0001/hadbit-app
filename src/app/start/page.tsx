@@ -1,10 +1,9 @@
-export default function Home() {
+import StartPage from "@/components/organisms/startPage";
+
+export default function page() {
   return (
-    <div>
-      <main>
-        <h1>Welcome to Hadbit MVP!</h1>
-        <p>This is a minimal viable product built with Next.js.</p>
-      </main>
+    <div className="container mx-auto py-10">
+      <StartPage></StartPage>
     </div>
   );
 }

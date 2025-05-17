@@ -1,5 +1,5 @@
 import { format, toZonedTime } from "date-fns-tz";
-import { parseISO } from "date-fns"; // parseISO は date-fns 本体から
+import { addDays, parseISO } from "date-fns"; // parseISO は date-fns 本体から
 
 export const formatUtcToJstString = (
   utcDateString: string | null | undefined,
@@ -25,4 +25,15 @@ const convertUtcStringToJstDate = (
   const utcDate = parseISO(isoStringWithZ); // UTCとしてパース
   // utcToZonedTime を使って JST の Date オブジェクトに変換
   return toZonedTime(utcDate, "Asia/Tokyo");
+};
+
+// Generate dates for the specified range
+export const generateDates = (argStartDate: Date, argEndDate: Date) => {
+  const dates: Date[] = [];
+  let currentDate = new Date(argStartDate);
+  while (currentDate <= argEndDate) {
+    dates.push(new Date(currentDate));
+    currentDate = addDays(currentDate, 1);
+  }
+  return dates;
 };
