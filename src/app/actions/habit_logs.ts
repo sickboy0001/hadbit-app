@@ -2,7 +2,7 @@
 
 import { HabitLog } from "@/types/habit/ui";
 import { createClient } from "@/util/supabase/server";
-import { formatISO, parseISO, startOfDay } from "date-fns";
+import { endOfDay, formatISO, parseISO, startOfDay } from "date-fns";
 
 export interface DbHabitLog {
   id: number; // 主キー、自動インクリメント
@@ -203,4 +203,139 @@ export async function deleteHabitLog(
   }
 
   return count !== null && count > 0;
+}
+
+/**
+ * 指定された期間の習慣ログを削除する内部関数
+ * @param userId ユーザーID
+ * @param habitId 習慣ID (数値型と仮定)
+ * @param startDate 削除開始日 (Dateオブジェクト)
+ * @param endDate 削除終了日 (Dateオブジェクト)
+ * @returns 削除されたログの件数
+ */
+async function deleteLogsInDateRange(
+  userId: string,
+  habitId: number,
+  startDate: Date,
+  endDate: Date
+): Promise<number> {
+  const supabase = await createClient();
+  try {
+    // done_at は通常タイムスタンプ型なので、日付の範囲で比較する
+    // startOfDay と endOfDay を使って、その日の始まりから終わりまでを正確に指定
+    const startRange = startOfDay(startDate);
+    const endRange = endOfDay(endDate);
+
+    const { error, count } = await await supabase
+      .from("habit_logs")
+      .delete({ count: "exact" })
+      .eq("user_id", userId)
+      .eq("item_id", habitId)
+      .gte("done_at", startRange.toISOString()) // ISO文字列に変換
+      .lte("done_at", endRange.toISOString()); // ISO文字列に変換
+
+    // .returning({ id: HabitLogTable.id }); // 削除された行のIDを返す (件数確認のため)
+
+    if (error) throw error; // エラーがあれば再スロー
+
+    return count ?? 0; // 削除された件数を返す (countがnullの場合は0)
+  } catch (error) {
+    console.error("Error deleting logs in date range:", error);
+    throw new Error("期間内のログ削除中にエラーが発生しました。");
+  }
+}
+
+export type ImportMode = "import" | "deleteAndRegister";
+
+export interface DbHabitLogInsert {
+  item_id: string;
+  done_at: Date;
+  comment: string | null;
+  user_id: number;
+}
+
+export async function importHabitLogsFromServer(
+  habitIdStr: string,
+  logsToInsert: DbHabitLogInsert[], //
+  mode: ImportMode
+): Promise<{
+  success: boolean;
+  message: string;
+  importedCount?: number;
+  deletedCount?: number;
+}> {
+  // logsToInsert が空の場合は処理を中断、または user_id を別途取得する必要がある
+  if (logsToInsert.length === 0 && mode === "deleteAndRegister") {
+    // 削除対象の日付範囲を特定できないため、何もしないかエラーを返す
+    return {
+      success: true,
+      message: "インポートするログがありません。",
+      importedCount: 0,
+      deletedCount: 0,
+    };
+  }
+  if (logsToInsert.length === 0) {
+    return {
+      success: true,
+      message: "インポートするログがありません。",
+      importedCount: 0,
+    };
+  }
+  const userId = logsToInsert[0].user_id;
+
+  const habitId = parseInt(habitIdStr, 10);
+  if (isNaN(habitId)) {
+    return { success: false, message: "無効な習慣IDです。" };
+  }
+
+  let deletedCount = 0;
+  if (mode === "deleteAndRegister" && logsToInsert.length > 0) {
+    // logsToInsert の日付から最小日と最大日を特定
+    const dates = logsToInsert.map((log) => log.done_at);
+    const minDate = new Date(Math.min(...dates.map((date) => date.getTime())));
+    const maxDate = new Date(Math.max(...dates.map((date) => date.getTime())));
+    deletedCount = await deleteLogsInDateRange(
+      String(userId),
+      habitId,
+      minDate,
+      maxDate
+    );
+  }
+
+  let importedCount = 0;
+  if (logsToInsert.length > 0) {
+    const supabase = await createClient();
+    console.log("Insert habitlogs:", logsToInsert);
+    // DbHabitLogInsert の item_id は string なので、数値の habitId に合わせるか、
+    // insert するデータの item_id を string にする必要があります。
+    // ここでは、DbHabitLogInsert の item_id が string のままであると仮定し、
+    // habitId (数値) を文字列に変換して比較・挿入します。
+    // もし DbHabitLogInsert の item_id を数値にできるなら、そちらの方が望ましいです。
+    const logsForDb = logsToInsert.map((log) => ({
+      user_id: log.user_id,
+      item_id: parseInt(String(log.item_id), 10), // item_id を数値に変換 (habitId と型を合わせる)
+      done_at: formatISO(startOfDay(log.done_at)), // 日付をISO文字列 (YYYY-MM-DDTHH:mm:ss.sssZ) に正規化
+      comment: log.comment,
+    }));
+
+    const { data: insertedData, error: insertError } = await supabase
+      .from("habit_logs")
+      .insert(logsForDb)
+      .select("id"); // 挿入されたレコードのIDを取得 (件数確認のため)
+
+    if (insertError) {
+      console.error("Error inserting habit logs:", insertError);
+      return {
+        success: false,
+        message: `ログの挿入中にエラーが発生しました: ${insertError.message}`,
+      };
+    }
+    importedCount = insertedData?.length ?? 0;
+  }
+  return {
+    success: true,
+    message: "インポート処理が完了しました。",
+    importedCount,
+    deletedCount,
+  };
 }

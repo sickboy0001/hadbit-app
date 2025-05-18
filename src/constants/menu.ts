@@ -24,7 +24,7 @@ export const headerNavItems: NavItem[] = [
   { id: "tree", type: "link", label: "habit", href: "/habit/manager" }, // test_tree は一つにまとめました
   { id: "Done", type: "link", label: "done", href: "/habit/done" }, // test_tree は一つにまとめました
   { id: "tracker", type: "link", label: "tracker", href: "/habit/tracker" }, // test_tree は一つにまとめました
-  { id: "about", type: "link", label: "About", href: "/about" },
+  { id: "import", type: "link", label: "import", href: "/habit/logImport" }, // test_tree は一つにまとめました
   {
     id: "menu",
     type: "dropdown",

@@ -35,8 +35,8 @@ import {
 } from "@/app/actions/habit_logs";
 import { formatUtcToJstString } from "@/lib/datetime";
 import { parseISO } from "date-fns/parseISO"; // ★ parseISO をインポート
-import { Card } from "@/components/ui/card"; // ★ Card コンポーネントをインポート
-import { PencilIcon } from "lucide-react"; // ★ 編集アイコンをインポート
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // ★ Card コンポーネントをインポート
+import { PencilIcon, Trash2 } from "lucide-react"; // ★ 編集アイコンをインポート
 import {
   Table,
   TableBody,
@@ -46,6 +46,8 @@ import {
   TableRow,
 } from "@/components/ui/table"; // ★ Table コンポーネントをインポート
 import { Button } from "@/components/ui/button";
+import ConfirmationDialog from "@/components/molecules/ConfirmationDialog"; // ★ ConfirmationDialog をインポート
+
 import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
 export type PresetDisplayItem =
   | { type: "button"; id: string; name: string; originalName: string }
@@ -67,6 +69,8 @@ export default function HabitDone() {
   const { user, loading: authLoading } = useAuth(); // ★ 認証状態を取得
 
   const [habitlogs, setHabitLogs] = useState<DbHabitLog[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [logToDelete, setLogToDelete] = useState<DbHabitLog | null>(null);
 
   // ★ defaultStartDate と defaultEndDate を useMemo でメモ化
   const defaultStartDate = useMemo(() => {
@@ -325,9 +329,6 @@ export default function HabitDone() {
     getHabitItemNameById,
   ]);
 
-  if (authLoading || (user?.userid && treeItems.length === 0)) {
-    return <div className="p-4 text-center">読み込み中...</div>;
-  }
   const handleOpenLogEditDialogForDone = (logToEdit: DbHabitLog) => {
     console.log("[HabitDone] Opening edit dialog for log:", logToEdit);
     setEditingLogData(logToEdit); // 編集対象のログオブジェクト全体をセット
@@ -336,6 +337,63 @@ export default function HabitDone() {
     setEditedCommentInDialog(logToEdit.comment || "");
     setIsLogEditDialogOpen(true); // ダイアログを開く
   };
+
+  const handleOpenDeleteDialog = (log: DbHabitLog) => {
+    setLogToDelete(log);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!logToDelete || !user?.userid) {
+      toast.error("削除対象の記録またはユーザー情報が見つかりません。");
+      setIsDeleteDialogOpen(false);
+      return;
+    }
+
+    const userId = user.userid;
+    const { item_id, done_at } = logToDelete;
+    const habitName = getHabitItemNameById(item_id);
+    const formattedDate = format(parseISO(done_at), "yyyy-MM-dd");
+
+    startTransition(async () => {
+      try {
+        // deleteHabitLog 関数を呼び出す (HabitTracker.tsx からインポートまたは同様の関数を定義)
+        // この関数は userId, itemId, formattedDate を引数に取る想定
+        const { deleteHabitLog } = await import("@/app/actions/habit_logs"); // 遅延インポート
+        const success = await deleteHabitLog(userId, item_id, formattedDate);
+
+        if (success) {
+          toast.success(`「${habitName}」の記録を削除しました。`, {
+            description: `${format(parseISO(done_at), "yyyy年M月d日", {
+              locale: ja,
+            })}`,
+          });
+          await refreshHabitLogs();
+        } else {
+          toast.error("記録の削除に失敗しました。");
+        }
+      } catch (error) {
+        console.error("Failed to delete habit log:", error);
+        toast.error("記録の削除中にエラーが発生しました。");
+      } finally {
+        setIsDeleteDialogOpen(false);
+        setLogToDelete(null);
+      }
+    });
+  }, [
+    logToDelete,
+    user,
+    refreshHabitLogs,
+    startTransition,
+    getHabitItemNameById,
+  ]);
+  const handleCancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setLogToDelete(null);
+  };
+  if (authLoading || (user?.userid && treeItems.length === 0)) {
+    return <div className="p-4 text-center">読み込み中...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -363,60 +421,107 @@ export default function HabitDone() {
         </DialogEdit>
       )}
       {/* ★ 習慣記録のテーブルを表示 */}
-      <Card className="overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[200px] font-bold">習慣名</TableHead>
-              <TableHead className="w-[150px] font-bold">実行日</TableHead>
-              <TableHead className="font-bold">コメント</TableHead>
-              <TableHead className="w-[170px] font-bold">登録日時</TableHead>
-              <TableHead className="w-[170px] font-bold">更新日時</TableHead>
-
-              <TableHead className="w-[80px] text-right font-bold">
-                操作
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {habitlogs.length === 0 ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>習慣の記録一覧</CardTitle>
+        </CardHeader>
+        <CardContent className="overflow-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell
-                  colSpan={6} // ★ カラム数に合わせて colSpan を変更
-                  className="text-center text-muted-foreground"
-                >
-                  記録はありません。
-                </TableCell>
+                <TableHead className="min-w-[200px] font-bold">
+                  習慣名
+                </TableHead>
+                <TableHead className="w-[150px] font-bold">実行日</TableHead>
+                <TableHead className="font-bold">コメント</TableHead>
+                <TableHead className="w-[170px] font-bold">登録日時</TableHead>
+                <TableHead className="w-[170px] font-bold">更新日時</TableHead>
+                <TableHead className="w-[120px] text-right font-bold">
+                  {" "}
+                  {/* 右端の操作列の幅を調整 */}
+                  操作
+                </TableHead>
               </TableRow>
-            ) : (
-              habitlogs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell>{getHabitItemNameById(log.item_id)}</TableCell>
-                  <TableCell>
-                    {format(parseISO(log.done_at), "yyyy年M月d日", {
-                      locale: ja,
-                    })}
-                  </TableCell>
-                  <TableCell className="whitespace-pre-wrap">
-                    {log.comment}
-                  </TableCell>
-                  <TableCell>{formatUtcToJstString(log.created_at)}</TableCell>
-                  <TableCell>{formatUtcToJstString(log.updated_at)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleOpenLogEditDialogForDone(log)}
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </Button>
+            </TableHeader>
+            <TableBody>
+              {habitlogs.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    記録はありません。
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                habitlogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span>{getHabitItemNameById(log.item_id)}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon" // アイコンのみのボタン
+                          className="h-7 w-7" // サイズを小さく
+                          onClick={() => handleOpenLogEditDialogForDone(log)}
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                          <span className="sr-only">編集</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {format(parseISO(log.done_at), "yyyy年M月d日", {
+                        locale: ja,
+                      })}
+                    </TableCell>
+                    <TableCell className="whitespace-pre-wrap">
+                      {log.comment}
+                    </TableCell>
+                    <TableCell>
+                      {formatUtcToJstString(log.created_at)}
+                    </TableCell>
+                    <TableCell>
+                      {formatUtcToJstString(log.updated_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive/90"
+                        onClick={() => handleOpenDeleteDialog(log)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
       </Card>
+
+      {/* 削除確認ダイアログ */}
+      <ConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        dialogTitle="記録の削除確認"
+        dialogMessage={
+          logToDelete // logToDelete が null でないことを再度確認 (型安全のため)
+            ? `「${getHabitItemNameById(logToDelete.item_id)}」の${format(
+                parseISO(logToDelete.done_at),
+                "yyyy年M月d日",
+                { locale: ja }
+              )}の記録を本当に削除しますか？この操作は元に戻せません。`
+            : "記録を本当に削除しますか？この操作は元に戻せません。" // フォールバックメッセージ
+        }
+        confiremButtonName="削除する"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        // 必要に応じて ConfirmationDialog に destructive スタイルを適用するための prop を追加
+        // confirmButtonVariant="destructive" // 例: ConfirmationDialog がこのような prop を受け付ける場合
+      />
     </div>
   );
 }

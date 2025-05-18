@@ -1,0 +1,376 @@
+新しい画面を作る必要があります。
+コンボボックスで、対象の「習慣」（ランニングや体重測定、読書など）を選べる
+テキストエリアで、CSVを入力
+オプションボタンで、削除後登録するか、削除なしで登録するかを確認
+確認画面で、上記の内容を表示するして、OK、キャンセルをボタン押下で選択
+OKなら、CSVを基準にデータの登録を行う
+CSVは
+日付,コメントの２列
+例
+習慣：体重測定
+2025/1/2,86
+2025/2/2,83
+2025/3/2,82
+2025/4/4,84
+2025/5/12,84
+
+習慣：ランニング
+2025/1/2
+2025/2/2
+2025/3/2
+2025/4/4
+
+などです。
+
+
+
+import { useState, useEffect, useTransition, ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
+import { parse, isValid, format, startOfDay } from 'date-fns';
+import { ja } from 'date-fns/locale';
+
+// 型定義のパスはプロジェクトに合わせて修正してください
+import { Habit } from "@/types/habit/ui"; // UI表示用の習慣の型 (例)
+import { DbHabitLogInsert } from "@/types/habit/log"; // DB登録用のログの型 (例)
+
+// --- サーバーアクションのプレースホルダー ---
+// これらは別途 `/app/actions/` ディレクトリなどに実際の処理を実装する必要があります。
+
+/**
+ * 認証済みユーザーの習慣リストを取得するサーバーアクション（仮実装）
+ * @returns Habitの配列を解決するPromise
+ */
+async function fetchHabitsForUser(): Promise<Habit[]> {
+  // 実際のプロジェクトでは、認証されたユーザーの習慣アイテムをDBから取得する処理を実装します。
+  // 例: return await readHabitItemsForCurrentUser();
+  console.warn("[プレースホルダー] fetchHabitsForUser の実装が必要です。");
+  // 以下はダミーデータです
+  return Promise.resolve([
+    // { id: "1", name: "ランニング", logs: [], children: [] },
+    // { id: "2", name: "体重測定", logs: [], children: [] },
+    // { id: "3", name: "読書", logs: [], children: [] },
+  ]);
+}
+
+/**
+ * CSVインポート処理を行うサーバーアクション（仮実装）
+ * @param habitId 対象の習慣ID
+ * @param logs 登録するログデータの配列
+ * @param mode インポートモード ('deleteAndRegister' | 'registerOnly')
+ * @returns 処理結果を含むオブジェクトを解決するPromise
+ */
+async function processCsvImport(
+  habitId: string,
+  logs: DbHabitLogInsert[],
+  mode: ImportMode
+): Promise<{ success: boolean; message: string; importedCount?: number; deletedCount?: number }> {
+  // 実際のプロジェクトでは、以下の処理を実装します:
+  // 1. 認証済みユーザーIDを取得します。
+  // 2. `mode` が 'deleteAndRegister' の場合:
+  //    - `habitId` と `logs` に含まれる日付に基づいて、該当する既存ログを削除します。
+  //    - 注意: 削除は、その習慣のCSV内の特定の日付のログのみを対象とします。
+  // 3. 新しいログをDBに挿入します。
+  // 4. 全てのDB操作は認証済みユーザーIDに関連付けられていることを保証します。
+  // 例: return await importHabitLogsFromServerAction(habitId, logs, mode);
+  console.warn("[プレースホルダー] processCsvImport の実装が必要です。", { habitId, logs, mode });
+  return Promise.resolve({ success: true, message: "インポート処理 (プレースホルダー) が完了しました。", importedCount: logs.length });
+}
+// --- サーバーアクションのプレースホルダーここまで ---
+"use client";
+
+import { toast } from "sonner"; // Toasts (通知) ライブラリ
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface ParsedLogEntry {
+  date: Date;         // 解析された日付オブジェクト
+  comment?: string;   // コメント (オプショナル)
+  originalLine: string; // CSVの元の行データ
+  lineNumber: number;   // CSVの行番号
+}
+
+type ImportMode = "deleteAndRegister" | "registerOnly"; // インポートモードの型
+
+export default function HabitLogImportPage() {
+  const [habits, setHabits] = useState<Habit[]>([]); // ユーザーの習慣リスト
+  const [selectedHabitId, setSelectedHabitId] = useState<string>(""); // 選択された習慣のID
+  const [csvText, setCsvText] = useState<string>(""); // 入力されたCSVテキスト
+  const [importMode, setImportMode] = useState<ImportMode>("registerOnly"); // インポートモード
+  
+  const [parsedCsvData, setParsedCsvData] = useState<ParsedLogEntry[]>([]); // 解析されたCSVデータ
+  const [showConfirmation, setShowConfirmation] = useState<boolean>(false); // 確認ダイアログの表示状態
+  const [isProcessing, startTransition] = useTransition(); // 処理中の状態管理 (UIのブロッキングを防ぐ)
+  const [formError, setFormError] = useState<string | null>(null); // フォーム全体のエラーメッセージ
+
+  const router = useRouter(); // Next.jsのルーター
+
+  // ページロード時にユーザーの習慣リストを読み込む
+  useEffect(() => {
+    const loadHabits = async () => {
+      try {
+        const userHabits = await fetchHabitsForUser(); // サーバーアクション呼び出し
+        setHabits(userHabits || []);
+        // 必要であれば、最初の習慣をデフォルトで選択状態にする
+        // if (userHabits.length > 0) {
+        //   setSelectedHabitId(userHabits[0].id);
+        // }
+      } catch (error) {
+        console.error("習慣リストの読み込みに失敗しました:", error);
+        toast.error("習慣リストの読み込みに失敗しました。");
+      }
+    };
+    loadHabits();
+  }, []); // 空の依存配列で初回レンダリング時のみ実行
+
+  // 「確認画面へ進む」ボタンの処理
+  const handleProceedToConfirmation = () => {
+    setFormError(null); // エラーメッセージをリセット
+    if (!selectedHabitId) {
+      setFormError("対象の習慣を選択してください。");
+      return;
+    }
+    if (!csvText.trim()) {
+      setFormError("CSVデータを入力してください。");
+      return;
+    }
+
+    const lines = csvText.trim().split(/\r?\n/); // 改行コード (LF, CRLF) で行分割
+    const parsed: ParsedLogEntry[] = [];
+    const errors: string[] = [];
+
+    lines.forEach((line, index) => {
+      const lineNumber = index + 1;
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return; // 空行はスキップ
+
+      const parts = trimmedLine.split(','); // 最初のカンマで分割
+      const dateStr = parts[0]?.trim();
+      const comment = parts.length > 1 ? parts.slice(1).join(',').trim() : undefined; // 2つ目以降のカンマはコメントの一部として扱う
+
+      if (!dateStr) {
+        errors.push(`行 ${lineNumber}: 日付が空です。 (${trimmedLine})`);
+        return;
+      }
+
+      // 'yyyy/M/d' 形式で日付をパース (例: 2023/1/5, 2023/12/15)
+      const parsedDate = parse(dateStr, 'yyyy/M/d', new Date());
+      if (!isValid(parsedDate)) {
+        errors.push(`行 ${lineNumber}: 日付の形式が無効です ("${dateStr}")。YYYY/M/D 形式で入力してください。`);
+        return;
+      }
+      // 日付を日の始まりに正規化して保存
+      parsed.push({ date: startOfDay(parsedDate), comment, originalLine: trimmedLine, lineNumber });
+    });
+
+    if (errors.length > 0) {
+      setFormError(`CSVデータの解析エラー:\n${errors.join("\n")}`);
+      setParsedCsvData([]);
+      return;
+    }
+
+    if (parsed.length === 0) {
+      setFormError("有効なログデータがCSVに見つかりませんでした。");
+      setParsedCsvData([]);
+      return;
+    }
+
+    setParsedCsvData(parsed);
+    setShowConfirmation(true); // 確認ダイアログを表示
+  };
+
+  // インポート実行の最終確認後の処理
+  const handleConfirmImport = () => {
+    if (!selectedHabitId || parsedCsvData.length === 0) return;
+
+    // DB登録用のデータ形式に変換
+    const logsToInsert: DbHabitLogInsert[] = parsedCsvData.map(log => ({
+      item_id: selectedHabitId, // 選択された習慣のID (DBスキーマの型に合わせる string or number)
+      done_at: log.date,        // Dateオブジェクト。サーバー側でISO文字列やDBのdatetime型に変換
+      comment: log.comment || null, // commentがundefinedならnullをDBへ
+      // user_id はサーバーアクション側で認証情報から付与する
+    }));
+
+    startTransition(async () => { // 非同期処理をトランジション内で実行
+      try {
+        const result = await processCsvImport(selectedHabitId, logsToInsert, importMode); // サーバーアクション呼び出し
+        if (result.success) {
+          toast.success(result.message || "ログのインポートに成功しました。");
+          setShowConfirmation(false);
+          setCsvText(""); // フォームをリセット
+          setParsedCsvData([]);
+          // 必要に応じて、インポート後に特定のページに遷移したり、データを再読み込みしたりする
+          // router.push('/habits');
+        } else {
+          toast.error(result.message || "ログのインポートに失敗しました。");
+        }
+      } catch (error: any) {
+        console.error("インポート処理に失敗しました:", error);
+        toast.error(`インポート処理中にエラーが発生しました: ${error.message || "不明なエラー"}`);
+      }
+    });
+  };
+
+  const selectedHabitName = habits.find(h => h.id === selectedHabitId)?.name || "未選択";
+  const importModeText = importMode === "deleteAndRegister" 
+    ? "削除後登録 (CSV内の日付に該当する既存ログを削除し、新しいログを登録)" 
+    : "削除なしで登録 (既存ログを保持し、新しいログを追加登録)";
+
+  return (
+    <div className="container mx-auto p-4 py-8 max-w-2xl">
+      <h1 className="text-3xl font-bold mb-8 text-center">習慣ログ CSVインポート</h1>
+
+      <div className="space-y-6 bg-white p-6 shadow-lg rounded-lg">
+        {/* 1. 対象の習慣選択 */}
+        <div>
+          <Label htmlFor="habit-select" className="text-lg font-medium">1. 対象の習慣</Label>
+          <Select value={selectedHabitId} onValueChange={setSelectedHabitId} name="habitId">
+            <SelectTrigger id="habit-select" className="mt-1">
+              <SelectValue placeholder="習慣を選択してください..." />
+            </SelectTrigger>
+            <SelectContent>
+              {habits.length === 0 && <SelectItem value="loading" disabled>読み込み中...</SelectItem>}
+              {habits.map((habit) => (
+                <SelectItem key={habit.id} value={habit.id}>
+                  {habit.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* 2. CSVデータ入力 */}
+        <div>
+          <Label htmlFor="csv-input" className="text-lg font-medium">2. CSVデータ入力</Label>
+          <Textarea
+            id="csv-input"
+            value={csvText}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCsvText(e.target.value)}
+            placeholder={"例:\n2025/1/2,コメントありの記録\n2025/2/2\n2025/3/2,別のコメント"}
+            rows={10}
+            className="mt-1 font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            各行に「日付,コメント」の形式で入力。コメントは省略可能です。日付は「YYYY/M/D」形式。
+          </p>
+        </div>
+
+        {/* 3. 登録オプション */}
+        <div>
+          <Label className="text-lg font-medium">3. 登録オプション</Label>
+          <RadioGroup
+            value={importMode}
+            onValueChange={(value) => setImportMode(value as ImportMode)}
+            className="mt-2 space-y-1"
+          >
+            <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50">
+              <RadioGroupItem value="registerOnly" id="mode-register" />
+              <Label htmlFor="mode-register" className="font-normal cursor-pointer">削除なしで登録 (既存ログを保持し、新しいログを追加)</Label>
+            </div>
+            <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50">
+              <RadioGroupItem value="deleteAndRegister" id="mode-delete" />
+              <Label htmlFor="mode-delete" className="font-normal cursor-pointer">削除後登録 (CSV内の日付に該当する既存ログを削除し、新しいログを登録)</Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        {/* エラーメッセージ表示 */}
+        {formError && (
+          <div className="text-red-600 bg-red-50 p-3 rounded-md whitespace-pre-wrap text-sm">{formError}</div>
+        )}
+
+        {/* 確認画面へ進むボタン */}
+        <Button onClick={handleProceedToConfirmation} disabled={isProcessing || !selectedHabitId || !csvText.trim()} className="w-full text-lg py-3">
+          確認画面へ進む
+        </Button>
+      </div>
+
+      {/* インポート内容確認ダイアログ */}
+      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>インポート内容の確認</AlertDialogTitle>
+            <AlertDialogDescription>
+              以下の内容で習慣ログをインポートします。よろしいですか？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4 space-y-3 text-sm max-h-80 overflow-y-auto">
+            <p><strong>対象の習慣:</strong> {selectedHabitName}</p>
+            <p><strong>登録モード:</strong> {importModeText}</p>
+            <p><strong>インポート件数:</strong> {parsedCsvData.length}件</p>
+            <details className="mt-2">
+              <summary className="cursor-pointer text-blue-600 hover:underline">
+                プレビュー (最初の最大10件表示)
+              </summary>
+              <ul className="list-disc list-inside pl-4 mt-1 bg-gray-50 p-2 rounded max-h-40 overflow-y-auto">
+                {parsedCsvData.slice(0, 10).map((log, index) => (
+                  <li key={index} className="font-mono text-xs py-0.5">
+                    {format(log.date, 'yyyy/MM/dd', { locale: ja })}
+                    {log.comment ? `, ${log.comment}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowConfirmation(false)} disabled={isProcessing}>
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmImport} disabled={isProcessing}>
+              {isProcessing ? "処理中..." : "OK (インポート実行)"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+2025/03/15,ジム
+2025/03/17,
+2025/03/19,
+2025/03/22,
+2025/03/27,
+2025/03/29,
+2025/03/30,
+2025/04/02,
+2025/04/05,ランニング、10分で1.2
+2025/04/06,ランニング10分1.2キロ
+2025/04/08,
+2025/04/10,1.3K
+2025/04/12,ラン1.3
+2025/04/14,1.4
+2025/04/16,1.43
+2025/04/19,1.2
+2025/04/21,1.44
+2025/04/23,1.51
+2025/04/26,1.52
+2025/04/29,ウォーキング1キロ
+2025/05/03,1.53
+2025/05/05,1.5
+2025/05/06,1.54
+2025/05/08,1.51
+2025/05/10,1.61
+2025/05/17,1.4
+2025/05/18,1.41
