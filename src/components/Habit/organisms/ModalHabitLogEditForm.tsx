@@ -1,9 +1,19 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 
-import { DatePicker } from "@/components/ui/date-picker"; // DatePicker をインポート
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ja } from "date-fns/locale"; // 日本語表示のため
+import { cn } from "@/lib/utils"; // Shadcn UIのユーティリティ
 
 // Interface for the function returned by customDebounce
 interface DebouncedFunction<Args extends unknown[]> {
@@ -85,11 +95,37 @@ const ModalHabitLogEditForm: React.FC<ModalHabitLogEditFormProps> = ({
   return (
     <div className="grid gap-4 py-4">
       <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="log-date" className="text-right">
-          日付
+        <Label htmlFor="date-picker-trigger" className="text-right col-span-1">
+          日付11
         </Label>
-        {/* DatePickerコンポーネントを使用 */}
-        <DatePicker date={currentDate} setDate={onDateChange} />
+        {/* Shadcn UI DatePickerコンポーネントを使用 */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              id="date-picker-trigger"
+              variant={"outline"}
+              className={cn(
+                "col-span-3 justify-start text-left font-normal",
+                !currentDate && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {currentDate ? (
+                format(currentDate, "PPP", { locale: ja })
+              ) : (
+                <span>日付を選択</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={currentDate}
+              onSelect={onDateChange}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="log-comment" className="text-right">

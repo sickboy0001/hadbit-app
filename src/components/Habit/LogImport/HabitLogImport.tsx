@@ -319,158 +319,160 @@ export default function HabitLogImportPage() {
       : "削除なしで登録 (既存ログを保持し、新しいログを追加登録)";
 
   return (
-    <div className="container mx-auto p-4 py-8 max-w-2xl">
-      <h1 className="text-3xl font-bold mb-8 text-center">
-        習慣ログ CSVインポート
-      </h1>
+    <>
+      <div className="container mx-auto p-4 py-8 max-w-2xl">
+        <h1 className="text-3xl font-bold mb-8 text-center">
+          習慣ログ CSVインポート
+        </h1>
 
-      <div className="space-y-6 bg-white p-6 shadow-lg rounded-lg">
-        {/* 1. 対象の習慣選択 */}
-        <div>
-          <Label htmlFor="habit-select" className="text-lg font-medium">
-            1. 対象の習慣
-          </Label>
-          <Select
-            value={selectedHabitId}
-            onValueChange={setSelectedHabitId}
-            name="habitId"
-          >
-            <SelectTrigger id="habit-select" className="mt-1">
-              <SelectValue placeholder="習慣を選択してください..." />
-            </SelectTrigger>
-            <SelectContent>
-              {displayHabits.length === 0 && (
-                <SelectItem value="loading" disabled>
-                  読み込み中...
-                </SelectItem>
-              )}
-              {displayHabits.map((habit) => (
-                <SelectItem key={habit.id} value={String(habit.id)}>
-                  {habit.hierarchicalName} {/* 表示は階層名 */}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* 2. CSVデータ入力 */}
-        <div>
-          <Label htmlFor="csv-input" className="text-lg font-medium">
-            2. CSVデータ入力
-          </Label>
-          <Textarea
-            id="csv-input"
-            value={csvText}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-              setCsvText(e.target.value)
-            }
-            placeholder={
-              "例:\n2025/1/2,コメントありの記録\n2025/2/2\n2025/3/2,別のコメント"
-            }
-            rows={10}
-            className="mt-1 font-mono text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            各行に「日付,コメント」の形式で入力。コメントは省略可能です。日付は「YYYY/M/D」形式。
-          </p>
-        </div>
-
-        {/* 3. 登録オプション */}
-        <div>
-          <Label className="text-lg font-medium">3. 登録オプション</Label>
-          <RadioGroup
-            value={importMode}
-            onValueChange={(value) => setImportMode(value as ImportMode)}
-            className="mt-2 space-y-1"
-          >
-            <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50">
-              <RadioGroupItem value="registerOnly" id="mode-register" />
-              <Label
-                htmlFor="mode-register"
-                className="font-normal cursor-pointer"
-              >
-                削除なしで登録 (既存ログを保持し、新しいログを追加)
-              </Label>
-            </div>
-            <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50">
-              <RadioGroupItem value="deleteAndRegister" id="mode-delete" />
-              <Label
-                htmlFor="mode-delete"
-                className="font-normal cursor-pointer"
-              >
-                削除後登録
-                (CSV内の日付に該当する既存ログを削除し、新しいログを登録)
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-
-        {/* エラーメッセージ表示 */}
-        {formError && (
-          <div className="text-red-600 bg-red-50 p-3 rounded-md whitespace-pre-wrap text-sm">
-            {formError}
-          </div>
-        )}
-
-        {/* 確認画面へ進むボタン */}
-        <Button
-          onClick={handleProceedToConfirmation}
-          disabled={isProcessing || !selectedHabitId || !csvText.trim()}
-          className="w-full text-lg py-3"
-        >
-          確認画面へ進む
-        </Button>
-      </div>
-
-      {/* インポート内容確認ダイアログ */}
-      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>インポート内容の確認</AlertDialogTitle>
-            <AlertDialogDescription>
-              以下の内容で習慣ログをインポートします。よろしいですか？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4 space-y-3 text-sm max-h-80 overflow-y-auto">
-            <p>
-              <strong>対象の習慣:</strong> {selectedHabitName}
-            </p>
-            <p>
-              <strong>登録モード:</strong> {importModeText}
-            </p>
-            <p>
-              <strong>インポート件数:</strong> {parsedCsvData.length}件
-            </p>
-            <details className="mt-2">
-              <summary className="cursor-pointer text-blue-600 hover:underline">
-                プレビュー (最初の最大10件表示)
-              </summary>
-              <ul className="list-disc list-inside pl-4 mt-1 bg-gray-50 p-2 rounded max-h-40 overflow-y-auto">
-                {parsedCsvData.slice(0, 10).map((log, index) => (
-                  <li key={index} className="font-mono text-xs py-0.5">
-                    {format(log.date, "yyyy/MM/dd", { locale: ja })}
-                    {log.comment ? `, ${log.comment}` : ""}
-                  </li>
+        <div className="space-y-6 bg-white p-6 shadow-lg rounded-lg">
+          {/* 1. 対象の習慣選択 */}
+          <div>
+            <Label htmlFor="habit-select" className="text-lg font-medium">
+              1. 対象の習慣
+            </Label>
+            <Select
+              value={selectedHabitId}
+              onValueChange={setSelectedHabitId}
+              name="habitId"
+            >
+              <SelectTrigger id="habit-select" className="mt-1">
+                <SelectValue placeholder="習慣を選択してください..." />
+              </SelectTrigger>
+              <SelectContent>
+                {displayHabits.length === 0 && (
+                  <SelectItem value="loading" disabled>
+                    読み込み中...
+                  </SelectItem>
+                )}
+                {displayHabits.map((habit) => (
+                  <SelectItem key={habit.id} value={String(habit.id)}>
+                    {habit.hierarchicalName} {/* 表示は階層名 */}
+                  </SelectItem>
                 ))}
-              </ul>
-            </details>
+              </SelectContent>
+            </Select>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={() => setShowConfirmation(false)}
-              disabled={isProcessing}
+
+          {/* 2. CSVデータ入力 */}
+          <div>
+            <Label htmlFor="csv-input" className="text-lg font-medium">
+              2. CSVデータ入力
+            </Label>
+            <Textarea
+              id="csv-input"
+              value={csvText}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                setCsvText(e.target.value)
+              }
+              placeholder={
+                "例:\n2025/1/2,コメントありの記録\n2025/2/2\n2025/3/2,別のコメント"
+              }
+              rows={10}
+              className="mt-1 font-mono text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              各行に「日付,コメント」の形式で入力。コメントは省略可能です。日付は「YYYY/M/D」形式。
+            </p>
+          </div>
+
+          {/* 3. 登録オプション */}
+          <div>
+            <Label className="text-lg font-medium">3. 登録オプション</Label>
+            <RadioGroup
+              value={importMode}
+              onValueChange={(value) => setImportMode(value as ImportMode)}
+              className="mt-2 space-y-1"
             >
-              キャンセル
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmImport}
-              disabled={isProcessing}
-            >
-              {isProcessing ? "処理中..." : "OK (インポート実行)"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+              <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50">
+                <RadioGroupItem value="registerOnly" id="mode-register" />
+                <Label
+                  htmlFor="mode-register"
+                  className="font-normal cursor-pointer"
+                >
+                  削除なしで登録 (既存ログを保持し、新しいログを追加)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-2 border rounded-md hover:bg-slate-50">
+                <RadioGroupItem value="deleteAndRegister" id="mode-delete" />
+                <Label
+                  htmlFor="mode-delete"
+                  className="font-normal cursor-pointer"
+                >
+                  削除後登録
+                  (CSV内の日付に該当する既存ログを削除し、新しいログを登録)
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {/* エラーメッセージ表示 */}
+          {formError && (
+            <div className="text-red-600 bg-red-50 p-3 rounded-md whitespace-pre-wrap text-sm">
+              {formError}
+            </div>
+          )}
+
+          {/* 確認画面へ進むボタン */}
+          <Button
+            onClick={handleProceedToConfirmation}
+            disabled={isProcessing || !selectedHabitId || !csvText.trim()}
+            className="w-full text-lg py-3"
+          >
+            確認画面へ進む
+          </Button>
+        </div>
+
+        {/* インポート内容確認ダイアログ */}
+        <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>インポート内容の確認</AlertDialogTitle>
+              <AlertDialogDescription>
+                以下の内容で習慣ログをインポートします。よろしいですか？
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="my-4 space-y-3 text-sm max-h-80 overflow-y-auto">
+              <p>
+                <strong>対象の習慣:</strong> {selectedHabitName}
+              </p>
+              <p>
+                <strong>登録モード:</strong> {importModeText}
+              </p>
+              <p>
+                <strong>インポート件数:</strong> {parsedCsvData.length}件
+              </p>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-blue-600 hover:underline">
+                  プレビュー (最初の最大10件表示)
+                </summary>
+                <ul className="list-disc list-inside pl-4 mt-1 bg-gray-50 p-2 rounded max-h-40 overflow-y-auto">
+                  {parsedCsvData.slice(0, 10).map((log, index) => (
+                    <li key={index} className="font-mono text-xs py-0.5">
+                      {format(log.date, "yyyy/MM/dd", { locale: ja })}
+                      {log.comment ? `, ${log.comment}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setShowConfirmation(false)}
+                disabled={isProcessing}
+              >
+                キャンセル
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmImport}
+                disabled={isProcessing}
+              >
+                {isProcessing ? "処理中..." : "OK (インポート実行)"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </>
   );
 }
