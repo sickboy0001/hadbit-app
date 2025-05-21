@@ -1,21 +1,11 @@
 "use client";
 import React, { useState } from "react";
 
-// import { DatePicker } from "@/components/ui/date-picker"; // DatePicker をインポート
+import { DatePicker } from "@/components/ui/date-picker"; // DatePicker をインポート
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { format } from "date-fns"; // ★ format, parseISO, startOfDay をインポート
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ja } from "date-fns/locale/ja";
 
 interface ModalDbHabitLogEditFormProps {
   dbHabitlog: DbHabitLog;
@@ -45,36 +35,11 @@ const ModalDbHabitLogEditForm: React.FC<ModalDbHabitLogEditFormProps> = ({
   return (
     <div className="grid gap-4 py-4">
       <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="log-date" className="text-right">
-          日付１１１
+        <Label htmlFor="log-date-picker" className="text-right col-span-1">
+          日付11
         </Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              id="date-picker-trigger"
-              variant={"outline"}
-              className={cn(
-                "col-span-3 justify-start text-left font-normal",
-                !doneAt && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {doneAt ? (
-                format(doneAt, "PPP", { locale: ja })
-              ) : (
-                <span>日付を選択</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={doneAt}
-              onSelect={setDoneAtLocal}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        {/* Shadcn UI DatePickerコンポーネントを使用 */}
+        <DatePicker date={doneAt} setDate={setDoneAtLocal} />
       </div>
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="log-comment" className="text-right">

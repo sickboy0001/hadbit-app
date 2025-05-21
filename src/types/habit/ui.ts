@@ -45,3 +45,13 @@ export type PresetButton = {
   name: string;
   parentId: string; // どの親習慣に紐づくか
 };
+
+export type PresetDisplayItem =
+  | { type: "button"; id: string; name: string; originalName: string }
+  | {
+      type: "category";
+      id: string;
+      name: string;
+      children: PresetDisplayItem[];
+    };
+export type NestedGroupedButtons = Record<string, PresetDisplayItem[]>;

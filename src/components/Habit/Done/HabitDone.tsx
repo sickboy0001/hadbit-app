@@ -7,60 +7,39 @@ import {
   useState,
   useTransition,
 } from "react";
+import DialogEdit from "@/components/molecules/DialogEdit"; // DialogEdit をインポート
 import { format, addDays, isEqual, startOfDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
 
-// import { findHabitById, getParentName } from "@/lib/habit";
-// import { createSampleData, PRESET_HABIT_BUTTONS } from "./dummy";
-import { TreeItem } from "@/types/habit/ui";
-import DialogEdit from "@/components/molecules/DialogEdit"; // DialogEdit をインポート
+import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
 import { HabitItem } from "@/types/habit/habit_item";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  readHabitItems,
-  readHabitItemTreeWithUserId,
-} from "@/app/actions/habit_items";
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 
 import PresetButtonsSection from "@/components/Habit/organisms/PresetButtonsSection";
 import {
   mapTreeItemsToPresetDisplayItems, // 新しいファイルからインポート
 } from "@/util/habitTreeConverters";
-import {
-  DbHabitLog,
-  insertHabitLog,
-  readDbHabitLogsByPeriod,
-  updateHabitLog,
-} from "@/app/actions/habit_logs";
-import { formatUtcToJstString } from "@/lib/datetime";
+import { DbHabitLog } from "@/app/actions/habit_logs";
 import { parseISO } from "date-fns/parseISO"; // ★ parseISO をインポート
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // ★ Card コンポーネントをインポート
-import { PencilIcon, Trash2 } from "lucide-react"; // ★ 編集アイコンをインポート
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"; // ★ Table コンポーネントをインポート
-import { Button } from "@/components/ui/button";
 import ConfirmationDialog from "@/components/molecules/ConfirmationDialog"; // ★ ConfirmationDialog をインポート
 
 import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
-export type PresetDisplayItem =
-  | { type: "button"; id: string; name: string; originalName: string }
-  | {
-      type: "category";
-      id: string;
-      name: string;
-      children: PresetDisplayItem[];
-    };
+import TreeHabitSelection from "./TreeHabitSelection"; // 新しいツリービューコンポーネントをインポート
 
-export type NestedGroupedButtons = Record<string, PresetDisplayItem[]>;
+import TableHabitLog from "./TableHabitLog";
+import AcitveHeatMap from "./AcitveHeatMap";
+import { TypeHeatMapData } from "@/types/TypeHeatMap";
+import {
+  addHabitLogEntry,
+  deleteHabitLogEntry,
+  fetchSortedHabitLogs,
+  fetchHabitDataForUI,
+  updateHabitLogEntry,
+} from "./DaoHabitDone";
 
-const DAY_DEF = 20;
+const DAY_DEF = 365;
 
 export default function HabitDone() {
   const [, startTransition] = useTransition(); // ★ トランジションフック
@@ -68,9 +47,11 @@ export default function HabitDone() {
   const [treeItems, setTreeItems] = useState<TreeItem[]>([]); // ★ 初期値を空配列に変更
   const { user, loading: authLoading } = useAuth(); // ★ 認証状態を取得
 
-  const [habitlogs, setHabitLogs] = useState<DbHabitLog[]>([]);
+  const [readHabitlogs, setReadHabitLogs] = useState<DbHabitLog[]>([]);
+  const [selHabitlogs, setSelHabitLogs] = useState<DbHabitLog[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [logToDelete, setLogToDelete] = useState<DbHabitLog | null>(null);
+  const [activeHeatMap, setActiveHeatMap] = useState<TypeHeatMapData[]>([]);
 
   // ★ defaultStartDate と defaultEndDate を useMemo でメモ化
   const defaultStartDate = useMemo(() => {
@@ -91,17 +72,20 @@ export default function HabitDone() {
   const [, setEditedCommentInDialog] = useState<string>("");
   const refreshItems = useCallback(() => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
-    if (user === undefined) return; // ユーザーIDがない場合は何もしない
+    // if (user === undefined) return; // ユーザーIDがない場合は何もしない
     const userId = user.userid;
     startTransition(async () => {
       try {
-        const nowHabitItems = await readHabitItems(userId);
-        const nowHabitItemTree = await readHabitItemTreeWithUserId(userId);
-        setHabitItems(nowHabitItems);
+        const {
+          habitItems: fetchedHabitItems,
+          habitItemTreeRaw: fetchedHabitItemTreeRaw,
+        } = await fetchHabitDataForUI(userId);
+
+        setHabitItems(fetchedHabitItems);
 
         const nowTreeItems = buildTreeFromHabitAndParentReration(
-          nowHabitItems,
-          nowHabitItemTree
+          fetchedHabitItems,
+          fetchedHabitItemTreeRaw
         );
         console.log("nowTreeItems", nowTreeItems);
         setTreeItems(nowTreeItems);
@@ -110,7 +94,7 @@ export default function HabitDone() {
         console.error("Failed to fetch habit items:", error);
       }
     });
-  }, [user]); // user.userid が変わったら再生成
+  }, [user, startTransition]); // user と startTransition に依存
 
   const refreshHabitLogs = useCallback(async () => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
@@ -122,29 +106,13 @@ export default function HabitDone() {
 
     startTransition(async () => {
       try {
-        const dbLogs = await readDbHabitLogsByPeriod(
-          // dbLogs はDBから取得したログデータの配列
+        const sortedLogs = await fetchSortedHabitLogs(
           userId,
           formattedStartDate,
           formattedEndDate
         );
-        // dbLogs を done_at (降順) と updated_at (降順) でソート
-        const sortedDbLogs = dbLogs.sort((a, b) => {
-          // まず done_at で比較 (新しいものが先)
-          const dateComparison =
-            new Date(b.done_at).getTime() - new Date(a.done_at).getTime();
-          if (dateComparison !== 0) {
-            return dateComparison;
-          }
-          // done_at が同じ場合は updated_at で比較 (新しいものが先)
-          return (
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-          );
-        });
-
-        setHabitLogs(sortedDbLogs);
-
-        console.log("habitlogs", dbLogs);
+        setReadHabitLogs(sortedLogs);
+        console.log("habitlogs", sortedLogs);
       } catch (error) {
         toast.error("習慣記録の読み込みに失敗しました。");
         console.error("Failed to fetch habit logs:", error);
@@ -173,22 +141,6 @@ export default function HabitDone() {
     [habitItems] // habits state が変更されたら再生成
   );
 
-  // findHabitById をローカルで定義 (またはインポート元を変更)
-  // const findHabitById = (
-  //   habitsToSearch: Habit[],
-  //   id: string
-  // ): Habit | undefined => {
-  //   for (const habit of habitsToSearch) {
-  //     if (habit.id === id) return habit;
-  //     if (habit.children) {
-  //       const foundInChildren = findHabitById(habit.children, id);
-  //       if (foundInChildren) return foundInChildren;
-  //     }
-  //   }
-  //   return undefined;
-  // };
-
-  // Toggle habit for today
   const toggleHabitForToday = useCallback(
     async (habitId: string, habitName: string) => {
       const today = new Date();
@@ -209,7 +161,7 @@ export default function HabitDone() {
       }
 
       // 既に今日記録されているかチェック (habitlogs state を使用)
-      const isAlreadyCompletedToday = habitlogs.some(
+      const isAlreadyCompletedToday = readHabitlogs.some(
         (log) =>
           log.item_id === itemId &&
           isEqual(startOfDay(parseISO(log.done_at)), todayDate)
@@ -222,12 +174,13 @@ export default function HabitDone() {
 
       startTransition(async () => {
         try {
-          const newLog = await insertHabitLog(
+          const newLog = await addHabitLogEntry(
             userId,
             itemId,
             formattedDate,
             null
-          ); // コメントはnull
+          ); // ★ DAO関数を呼び出し
+
           if (newLog) {
             toast.success(`「${habitName}」を記録しました。`, {
               description: `${format(today, "yyyy年M月d日", { locale: ja })}`,
@@ -242,8 +195,60 @@ export default function HabitDone() {
         }
       });
     },
-    [user, habitlogs, refreshHabitLogs, startTransition] // 依存配列を更新
+    [user, readHabitlogs, refreshHabitLogs, startTransition] // 依存配列を更新
   );
+
+  // readHabitlogs が更新されたら、selHabitlogs も全件で初期化（「全て」選択時の状態）
+  useEffect(() => {
+    setSelHabitLogs(readHabitlogs);
+  }, [readHabitlogs]);
+
+  const toggleHabitSelection = useCallback(
+    async (habitId: string, habitName: string) => {
+      console.log(
+        "toggleHabitSelection called habitId, habitName",
+        habitId,
+        habitName
+      );
+      const selectedId = Number(habitId);
+      if (selectedId == 0) {
+        setSelHabitLogs(readHabitlogs);
+      } else {
+        // 特定の習慣が選択された場合
+        const filteredLogs = readHabitlogs.filter(
+          (log) => log.item_id === selectedId
+        );
+        setSelHabitLogs(filteredLogs);
+      }
+    },
+    [readHabitlogs] // readHabitlogs に依存
+  );
+
+  useEffect(() => {
+    if (!selHabitlogs) {
+      setActiveHeatMap([]);
+      return;
+    }
+
+    const countsByDate: Record<string, number> = {};
+
+    selHabitlogs.forEach((log) => {
+      try {
+        const dateObj = parseISO(log.done_at); // ISO文字列をDateオブジェクトにパース
+        // @uiw/react-heat-map が期待する形式 "yyyy/MM/dd" にフォーマット
+        const formattedDateKey = format(dateObj, "yyyy/MM/dd");
+        countsByDate[formattedDateKey] =
+          (countsByDate[formattedDateKey] || 0) + 1;
+      } catch (error) {
+        console.error("ヒートマップ用の日付パースエラー:", log.done_at, error);
+      }
+    });
+
+    const newHeatMapData = Object.entries(countsByDate).map(
+      ([date, count]) => ({ date, count })
+    );
+    setActiveHeatMap(newHeatMapData);
+  }, [selHabitlogs]);
 
   const handleDialogClose = (open: boolean) => {
     setIsLogEditDialogOpen(open);
@@ -289,7 +294,8 @@ export default function HabitDone() {
 
     startTransition(async () => {
       try {
-        const updatedLog = await updateHabitLog(
+        const updatedLog = await updateHabitLogEntry(
+          // ★ DAO関数を呼び出し
           logIdToUpdate,
           editingLogData.done_at,
           editingLogData.comment || ""
@@ -359,8 +365,12 @@ export default function HabitDone() {
       try {
         // deleteHabitLog 関数を呼び出す (HabitTracker.tsx からインポートまたは同様の関数を定義)
         // この関数は userId, itemId, formattedDate を引数に取る想定
-        const { deleteHabitLog } = await import("@/app/actions/habit_logs"); // 遅延インポート
-        const success = await deleteHabitLog(userId, item_id, formattedDate);
+        // const { deleteHabitLog } = await import("@/app/actions/habit_logs"); // 遅延インポート
+        const success = await deleteHabitLogEntry(
+          userId,
+          item_id,
+          formattedDate
+        ); // ★ DAO関数を呼び出し
 
         if (success) {
           toast.success(`「${habitName}」の記録を削除しました。`, {
@@ -395,6 +405,10 @@ export default function HabitDone() {
     return <div className="p-4 text-center">読み込み中...</div>;
   }
 
+  //ActiveHeatMap
+  const to_at = new Date(defaultEndDate);
+  const from_at = addDays(to_at, -365);
+
   return (
     <div className="space-y-6">
       <PresetButtonsSection
@@ -402,7 +416,6 @@ export default function HabitDone() {
         onToggleHabit={toggleHabitForToday}
         getParentName={getParentNameFromTree} // 更新されたゲッター関数を使用
       />
-
       {/* DialogEdit を使用して編集ダイアログをレンダリング */}
       {editingLogData && ( // editingLogData がある場合のみ DialogEdit をレンダリング（タイトル設定のため）
         <DialogEdit
@@ -420,88 +433,31 @@ export default function HabitDone() {
           />
         </DialogEdit>
       )}
-      {/* ★ 習慣記録のテーブルを表示 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>習慣の記録一覧</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[200px] font-bold">
-                  習慣名
-                </TableHead>
-                <TableHead className="w-[150px] font-bold">実行日</TableHead>
-                <TableHead className="font-bold">コメント</TableHead>
-                <TableHead className="w-[170px] font-bold">登録日時</TableHead>
-                <TableHead className="w-[170px] font-bold">更新日時</TableHead>
-                <TableHead className="w-[120px] text-right font-bold">
-                  {" "}
-                  {/* 右端の操作列の幅を調整 */}
-                  操作
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {habitlogs.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center text-muted-foreground py-8"
-                  >
-                    記録はありません。
-                  </TableCell>
-                </TableRow>
-              ) : (
-                habitlogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{getHabitItemNameById(log.item_id)}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon" // アイコンのみのボタン
-                          className="h-7 w-7" // サイズを小さく
-                          onClick={() => handleOpenLogEditDialogForDone(log)}
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                          <span className="sr-only">編集</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {format(parseISO(log.done_at), "yyyy年M月d日", {
-                        locale: ja,
-                      })}
-                    </TableCell>
-                    <TableCell className="whitespace-pre-wrap">
-                      {log.comment}
-                    </TableCell>
-                    <TableCell>
-                      {formatUtcToJstString(log.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      {formatUtcToJstString(log.updated_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive/90"
-                        onClick={() => handleOpenDeleteDialog(log)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
+      <div className="hidden sm:block">
+        <AcitveHeatMap
+          heatMapData={activeHeatMap}
+          from_at_string={from_at.toLocaleDateString()}
+          to_at_string={to_at.toLocaleDateString()}
+          tooltipId={`heatmapIdSummary`}
+          key="summary-heatmap"
+          color=""
+          // onDateClick={onDateClick}
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-[theme(spacing.72)_1fr] gap-6">
+        {/* 左側のカラム: 習慣選択ツリー */}
+        <TreeHabitSelection
+          treeItems={treeItems}
+          onHabitSelect={toggleHabitSelection}
+        />
+        <TableHabitLog
+          habitlogs={selHabitlogs} //readHabitlogs
+          getHabitItemNameById={getHabitItemNameById}
+          handleOpenLogEditDialog={handleOpenLogEditDialogForDone}
+          handleOpenDeleteDialog={handleOpenDeleteDialog}
+        />
+      </div>
+      {/* 左側に習慣選択ツリーを表示 */}
       {/* 削除確認ダイアログ */}
       <ConfirmationDialog
         open={isDeleteDialogOpen}
