@@ -6,7 +6,7 @@ import { PencilIcon, Trash2 } from "lucide-react";
 
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { formatUtcToJstString } from "@/lib/datetime";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -32,10 +32,7 @@ const TableHabitLog: React.FC<HabitLogTableProps> = ({
 }) => {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>習慣の記録一覧</CardTitle>
-      </CardHeader>
-      <CardContent className="overflow-auto">
+      <CardContent className="overflow-auto p-3">
         <Table>
           <TableHeader>
             <TableRow>

@@ -28,6 +28,8 @@ import { useRouter } from "next/navigation";
 import { LoginSuccessAlert } from "@/components/molecules/LoginSuccessAlert"; // ★ パスを修正 (必要であれば)
 import { LogoutSuccessAlert } from "../molecules/LogoutSuccessAlert";
 import { useAuth } from "@/contexts/AuthContext";
+import { ChevronDown, LogIn, LogOut } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function Header() {
   const { user, loading } = useAuth(); // ★ Context からユーザー情報とローディング状態を取得
@@ -53,91 +55,101 @@ export function Header() {
     window.location.reload(); // ★ ページ全体をリロードしてみる
   };
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <LogoutSuccessAlert /> {/* ★ ログアウト用アラートをレンダリング */}
-        <LoginSuccessAlert /> {/* ★ 新しいコンポーネントをレンダリング */}
-        {/* 左側のロゴやサイトタイトルなど */}
-        <div className="flex flex-1 items-center justify-end">
-          <div className="mr-4 hidden md:flex">
-            <Link href="/" className="mr-6 flex items-center space-x-2">
-              {/* <Icons.logo className="h-6 w-6" /> */}
-              <span className="hidden font-bold sm:inline-block">
-                Hadbit App
-              </span>
-            </Link>
+    <>
+      <header className="text-gray-600 body-font">
+        <div className="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
+          <Link href="/" className="font-bold text-base sm:text-2xl">
+            Hadbit
+          </Link>
+          <nav className="md:mr-auto md:ml-4 md:py-1 md:pl-4 md:border-l md:border-gray-400	flex flex-wrap items-center text-base justify-center">
+            <NavigationMenu>
+              <NavigationMenuList>
+                {headerNavItems.map((item) => (
+                  <NavigationMenuItem key={item.id}>
+                    {item.type === "link" && (
+                      <NavigationMenuLink
+                        asChild
+                        className={navigationMenuTriggerStyle()}
+                      >
+                        <Link href={item.href}>{item.label}</Link>
+                      </NavigationMenuLink>
+                    )}
+                    {item.type === "dropdown" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className={cn(
+                              navigationMenuTriggerStyle(),
+                              "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
+                            )}
+                          >
+                            {item.label}
+                            {/* ドロップダウンアイコンを追加 */}
+                            <ChevronDown className="relative top-[1px] ml-1 h-3 w-3 transition duration-200 group-data-[state=open]:rotate-180" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[200px]">
+                          {item.items.map((subItem) => (
+                            <DropdownMenuItem key={subItem.id} asChild>
+                              <Link href={subItem.href}>{subItem.label}</Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </NavigationMenuItem>
+                ))}
+              </NavigationMenuList>
+            </NavigationMenu>
+          </nav>
+          <div className="flex items-center space-x-4">
+            {/* ログイン・ログアウトUIなど */}
+            {loading ? (
+              <div className="h-9 w-20 animate-pulse rounded-md bg-muted"></div>
+            ) : user ? (
+              <>
+                <span className="hidden sm:inline-block text-sm text-muted-foreground truncate max-w-[60px]">
+                  {username}
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleSignOut}>
+                      <LogOut className="h-5 w-5" />
+                      <span className="sr-only">ログアウト</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>ログアウト</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsLoginDialogOpen(true)}
+                  >
+                    <LogIn className="h-5 w-5" />
+                    <span className="sr-only">ログイン</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>ログイン</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </div>
-        {/* 中央のナビゲーションメニュー */}
-        <div className="flex flex-1 items-center justify-end">
-          {/* 中央寄せ */}
-          <NavigationMenu>
-            <NavigationMenuList>
-              {/* ★ headerNavItems をループしてメニュー項目を生成 */}
-              {headerNavItems.map((item) => (
-                <NavigationMenuItem key={item.id}>
-                  {item.type === "link" && (
-                    <NavigationMenuLink
-                      asChild
-                      className={navigationMenuTriggerStyle()}
-                    >
-                      <Link href={item.href}>{item.label}</Link>
-                    </NavigationMenuLink>
-                  )}
-                  {item.type === "dropdown" && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            navigationMenuTriggerStyle(),
-                            "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground"
-                          )}
-                        >
-                          {item.label}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[200px]">
-                        {item.items.map((subItem) => (
-                          <DropdownMenuItem key={subItem.id} asChild>
-                            <Link href={subItem.href}>{subItem.label}</Link>
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
-        <div className="flex items-center justify-end space-x-4 ml-4">
-          {/* ml-4 を追加してナビゲーションとの間隔を調整 */}
-          {loading ? (
-            // ローディング中は何も表示しないか、スケルトンローダーなどを表示
-            <div className="h-9 w-20 animate-pulse rounded-md bg-muted"></div>
-          ) : user ? (
-            // ログイン済みの場合
-            <>
-              <span className="text-sm text-muted-foreground hidden sm:inline-block">
-                {username} {/* ユーザーのメールアドレスなどを表示 */}
-              </span>
-              <Button variant="outline" onClick={handleSignOut}>
-                ログアウト
-              </Button>
-            </>
-          ) : (
-            // 未ログインの場合
-            <Button onClick={() => setIsLoginDialogOpen(true)}>ログイン</Button>
-          )}
-        </div>
-      </div>
-
-      {/* ★ LoginDialog コンポーネントをレンダリング */}
+      </header>
+      <LogoutSuccessAlert />
+      <LoginSuccessAlert />
       <LoginDialog
         open={isLoginDialogOpen}
         onOpenChange={setIsLoginDialogOpen}
       />
-    </header>
+    </>
   );
 }

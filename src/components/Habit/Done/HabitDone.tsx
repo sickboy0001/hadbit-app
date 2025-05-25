@@ -28,16 +28,16 @@ import ConfirmationDialog from "@/components/molecules/ConfirmationDialog"; // �
 import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
 import TreeHabitSelection from "./TreeHabitSelection"; // 新しいツリービューコンポーネントをインポート
 
-import TableHabitLog from "./TableHabitLog";
-import AcitveHeatMap from "./AcitveHeatMap";
 import { TypeHeatMapData } from "@/types/TypeHeatMap";
+
+import HeatMapTableHabitLog from "./HeatMapTableHabitLog";
 import {
   addHabitLogEntry,
-  deleteHabitLogEntry,
-  fetchSortedHabitLogs,
+  deleteDayHabitLogEntry,
   fetchHabitDataForUI,
+  fetchSortedHabitLogs,
   updateHabitLogEntry,
-} from "./DaoHabitDone";
+} from "../data/DaoHabitLog";
 
 const DAY_DEF = 365;
 
@@ -335,7 +335,7 @@ export default function HabitDone() {
     getHabitItemNameById,
   ]);
 
-  const handleOpenLogEditDialogForDone = (logToEdit: DbHabitLog) => {
+  const handleOpenLogEditDialog = (logToEdit: DbHabitLog) => {
     console.log("[HabitDone] Opening edit dialog for log:", logToEdit);
     setEditingLogData(logToEdit); // 編集対象のログオブジェクト全体をセット
     // ダイアログの初期値をセット
@@ -366,7 +366,7 @@ export default function HabitDone() {
         // deleteHabitLog 関数を呼び出す (HabitTracker.tsx からインポートまたは同様の関数を定義)
         // この関数は userId, itemId, formattedDate を引数に取る想定
         // const { deleteHabitLog } = await import("@/app/actions/habit_logs"); // 遅延インポート
-        const success = await deleteHabitLogEntry(
+        const success = await deleteDayHabitLogEntry(
           userId,
           item_id,
           formattedDate
@@ -433,31 +433,26 @@ export default function HabitDone() {
           />
         </DialogEdit>
       )}
-      <div className="hidden sm:block">
-        <AcitveHeatMap
-          heatMapData={activeHeatMap}
-          from_at_string={from_at.toLocaleDateString()}
-          to_at_string={to_at.toLocaleDateString()}
-          tooltipId={`heatmapIdSummary`}
-          key="summary-heatmap"
-          color=""
-          // onDateClick={onDateClick}
-        />
-      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-[theme(spacing.72)_1fr] gap-6">
         {/* 左側のカラム: 習慣選択ツリー */}
         <TreeHabitSelection
           treeItems={treeItems}
           onHabitSelect={toggleHabitSelection}
         />
-        <TableHabitLog
-          habitlogs={selHabitlogs} //readHabitlogs
-          getHabitItemNameById={getHabitItemNameById}
-          handleOpenLogEditDialog={handleOpenLogEditDialogForDone}
-          handleOpenDeleteDialog={handleOpenDeleteDialog}
-        />
+        <div>
+          <HeatMapTableHabitLog
+            activeHeatMap={activeHeatMap}
+            fromAtString={from_at.toLocaleDateString()} // toLocaleDateString() は環境依存の可能性あり
+            toAtString={to_at.toLocaleDateString()} // format(date, "yyyy-MM-dd") の方が堅牢
+            selHabitlogs={selHabitlogs}
+            getHabitItemNameById={getHabitItemNameById}
+            handleOpenLogEditDialog={handleOpenLogEditDialog} // 関数名を props 名に合わせる
+            handleOpenDeleteDialog={handleOpenDeleteDialog}
+          />
+        </div>
       </div>
-      {/* 左側に習慣選択ツリーを表示 */}
+
       {/* 削除確認ダイアログ */}
       <ConfirmationDialog
         open={isDeleteDialogOpen}

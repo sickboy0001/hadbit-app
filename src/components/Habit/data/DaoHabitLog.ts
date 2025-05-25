@@ -5,7 +5,8 @@ import {
 } from "@/app/actions/habit_items";
 import {
   DbHabitLog,
-  deleteHabitLog,
+  deleteDayHabitLog,
+  deleteHabitLogById,
   insertHabitLog,
   readDbHabitLogsByPeriod,
   updateHabitLog,
@@ -58,19 +59,29 @@ export async function addHabitLogEntry(
 export async function updateHabitLogEntry(
   logId: number,
   doneAt: string, // Expecting ISO string or "yyyy-MM-dd"
-  comment: string
+  comment: string | null
 ): Promise<DbHabitLog | null> {
   // The actual database update is handled by the server action
+
   const updatedLog = await updateHabitLog(logId, doneAt, comment);
   return updatedLog;
 }
 
-export async function deleteHabitLogEntry(
+export async function deleteDayHabitLogEntry(
   userId: number,
   itemId: number,
   doneDate: string // Expecting "yyyy-MM-dd"
 ): Promise<boolean> {
   // The actual database deletion is handled by the server action
-  const success = await deleteHabitLog(userId, itemId, doneDate);
+  const success = await deleteDayHabitLog(userId, itemId, doneDate);
+  return success;
+}
+
+export async function deleteHabitLogByIdEntry(
+  userId: number,
+  habitlogId: number
+): Promise<boolean> {
+  // The actual database deletion is handled by the server action
+  const success = await deleteHabitLogById(userId, habitlogId);
   return success;
 }

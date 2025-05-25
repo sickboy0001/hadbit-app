@@ -37,7 +37,7 @@ export default function RootLayout({
           {" "}
           {/* ★ AuthProvider でラップ */}
           <Header /> {/* ヘッダーコンポーネントをここに追加 */}
-          <main className="flex-grow container mx-auto px-4 py-8">
+          <main className="flex-grow container mx-auto px-4 py-1">
             {/* メインコンテンツ用のラッパーを追加 (任意) */}
             {children}
           </main>

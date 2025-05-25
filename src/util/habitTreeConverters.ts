@@ -1,5 +1,4 @@
-import { TreeItem } from "@/types/habit/ui"; // TreeItem 型をインポート
-import { PresetDisplayItem } from "@/components/Habit/Tracker/HabitTracker"; // PresetDisplayItem 型をインポート
+import { PresetDisplayItem, TreeItem } from "@/types/habit/ui"; // TreeItem 型をインポート
 
 // TreeItem[] を PresetDisplayItem[] に変換する関数
 export const mapTreeItemsToPresetDisplayItems = (

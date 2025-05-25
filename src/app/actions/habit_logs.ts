@@ -178,7 +178,7 @@ export async function updateHabitLog(
  * @param logDate 削除する記録の日付 (YYYY-MM-DD 形式の文字列)
  * @returns 削除に成功した場合は true、該当する記録がない場合は false
  */
-export async function deleteHabitLog(
+export async function deleteDayHabitLog(
   userId: number,
   itemId: number,
   logDate: string // YYYY-MM-DD
@@ -196,6 +196,28 @@ export async function deleteHabitLog(
     .eq("user_id", userId)
     .eq("item_id", itemId)
     .eq("done_at", doneAtIsoString); // 正規化されたdone_atで完全一致するものを削除
+
+  if (error) {
+    console.error("Error deleting habit log:", error);
+    throw new Error(`Failed to delete habit log: ${error.message}`);
+  }
+
+  return count !== null && count > 0;
+}
+
+export async function deleteHabitLogById(
+  userId: number,
+  HabitLogId: number
+): Promise<boolean> {
+  const supabase = await createClient();
+
+  // logDate (YYYY-MM-DD) をその日の開始時刻 (UTC) のISO文字列に変換
+
+  const { error, count } = await supabase
+    .from("habit_logs")
+    .delete({ count: "exact" }) // countオプションで削除件数を取得
+    .eq("user_id", userId)
+    .eq("id", HabitLogId);
 
   if (error) {
     console.error("Error deleting habit log:", error);
