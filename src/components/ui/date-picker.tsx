@@ -15,10 +15,16 @@ import {
 interface DatePickerProps {
   date: Date | undefined;
   setDate: (date: Date | undefined) => void;
+  className?: string; // classNameプロパティを追加 (オプショナル)
 }
 
-export function DatePicker({ date, setDate }: DatePickerProps) {
+export function DatePicker({
+  date,
+  setDate,
+  className: _className,
+}: DatePickerProps) {
   // Popoverの開閉状態を管理するためのstate
+
   const [isOpen, setIsOpen] = React.useState(false);
   // 日付が選択されたときの処理
   const handleDateSelect = (selectedDay: Date | undefined) => {
@@ -37,7 +43,7 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
         <Button
           variant={"outline"}
           className={cn(
-            "w-[240px] justify-start text-left font-normal", // 幅を少し広めに調整
+            "w-[160px] justify-start text-left font-normal", // 幅を少し広めに調整
             !date && "text-muted-foreground" // 日付が選択されていない場合は文字色を薄くする
           )}
           aria-label={

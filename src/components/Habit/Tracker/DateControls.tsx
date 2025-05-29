@@ -28,22 +28,34 @@ const DateControls: React.FC<DateControlsProps> = ({
     <>
       {/* Date range selection */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span>開始日:</span>
-          <DatePicker date={startDate} setDate={onStartDateChange} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span>終了日:</span>
-          <DatePicker date={endDate} setDate={onEndDateChange} />
-        </div>
-      </div>
-
-      {/* Date range navigation */}
-      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">■期間</h2>
         <h2 className="text-xl font-semibold">
           {format(startDate, "yyyy年M月d日", { locale: ja })} -{" "}
           {format(endDate, "yyyy年M月d日", { locale: ja })}
         </h2>
+      </div>
+
+      {/* Date range navigation */}
+      <div className="flex items-center justify-between">
+        <div className="flex justify-items-start gap-2">
+          <div className="flex items-center gap-2">
+            <span>開始日:</span>
+            <DatePicker
+              date={startDate}
+              setDate={onStartDateChange}
+              className="w-40"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span>終了日:</span>
+            <DatePicker
+              date={endDate}
+              setDate={onEndDateChange}
+              className="w-40"
+            />
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onGoToPreviousRange}>
             <ChevronLeft className="h-4 w-4 mr-1" /> 前の期間

@@ -1,7 +1,7 @@
 // components/molecules/GanttChart.tsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { format, isSameDay } from "date-fns";
-import { HabitItem } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
+import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
 import { DbHabitLog } from "@/app/actions/habit_logs"; // このパスをプロジェクトに合わせて調整してください
 import { TreeItem } from "@/types/habit/ui"; // このパスをプロジェクトに合わせて調整してください
 import { generateDates } from "@/lib/datetime"; // このパスをプロジェクトに合わせて調整してください
@@ -15,6 +15,7 @@ import { ChevronDown, ChevronRightIcon } from "lucide-react"; // アイコンを
 
 interface GanttChartProps {
   habitItems: HabitItem[];
+  habitItemInfos: HabitItemInfo[];
   habitLogs: DbHabitLog[];
   treeItems: TreeItem[];
   startDate: Date;
@@ -29,6 +30,7 @@ interface GanttChartProps {
 
 const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   habitItems,
+  habitItemInfos = [],
   habitLogs,
   treeItems,
   startDate,
@@ -38,7 +40,8 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   onToggleCategory,
 }) => {
   const dates = generateDates(startDate, endDate);
-
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // console.log("GattChartHabitTracker called", habitItemInfos);
   // treeItemsとhabitItemsに基づいて習慣の表示順序を決定する
   const orderedHabitDisplayItems: {
     id: string;
@@ -48,6 +51,13 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     level: number; // インデント用
   }[] = [];
 
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      // スクロールコンテナが存在する場合、一番右にスクロールする
+      scrollContainerRef.current.scrollLeft =
+        scrollContainerRef.current.scrollWidth;
+    }
+  }, [dates]); // dates が変更されたとき（表示期間が変わったとき）に再実行
   // まず、トップレベルのカテゴリを追加
   treeItems.forEach((category) => {
     orderedHabitDisplayItems.push({
@@ -121,8 +131,10 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border border-gray-300">
+      {/* ref を追加してスクロールコンテナへの参照を取得 */}
+      <div className="overflow-x-auto" ref={scrollContainerRef}>
+        <h2 className="text-xl font-semibold">■記録（ガントチャート）</h2>
+        <table className="mt-2 min-w-full divide-y divide-gray-200 border border-gray-300">
           <thead className="bg-gray-50">
             <tr>
               <th
@@ -254,6 +266,13 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
                         habit.id.toString(),
                         date
                       ); // 特定のログを取得
+                      const habitInfo = habitItemInfos.find(
+                        (info) => info.id === habit.id
+                      );
+                      // console.log(habitItemInfos);
+                      const markerColor = habitInfo
+                        ? habitInfo.info_string
+                        : "text-blue-500"; // デフォルト色
 
                       return (
                         <td
@@ -265,15 +284,17 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
                               <TooltipTrigger asChild>
                                 <button
                                   type="button"
-                                  className="inline-flex items-center justify-center h-5 w-5 rounded-full text-white text-xs font-bold cursor-pointer hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                  className="inline-flex items-center justify-center h-5 w-5 rounded-full text-xs font-bold cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2"
                                   onClick={(event) => onLogClick(log, event)} // クリック時にログデータとイベントを渡して親のハンドラーを呼び出す
                                   aria-label={`Record for ${
                                     habit.name
                                   } on ${format(date, "yyyy-MM-dd")}`}
+                                  style={{
+                                    borderColor: markerColor,
+                                    color: markerColor,
+                                  }} // hover時の色も考慮するとクラス制御が良いかも
                                 >
-                                  <span
-                                    className="inline-flex items-center justify-center h-5 w-5 text-blue-500 text-xs font-bold cursor-default" // cursor-default を追加
-                                  >
+                                  <span className="inline-flex items-center justify-center h-5 w-5 text-xs font-bold cursor-default">
                                     ◆
                                   </span>
                                 </button>

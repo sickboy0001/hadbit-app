@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import PresetButtonsSection from "../organisms/PresetButtonsSection";
@@ -24,7 +25,7 @@ import {
   fetchSortedHabitLogs,
   updateHabitLogEntry,
 } from "../data/DaoHabitLog";
-import { HabitItem } from "@/types/habit/habit_item";
+import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
 import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { DbHabitLog } from "@/app/actions/habit_logs";
@@ -32,6 +33,7 @@ import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 import { mapTreeItemsToPresetDisplayItems } from "@/util/habitTreeConverters";
 import { generateDates } from "@/lib/datetime";
 import GanttChart from "./GattChartHabitTracker";
+
 import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
 import ConfirmationDialog from "@/components/molecules/ConfirmationDialog";
 import DialogEdit from "@/components/molecules/DialogEdit";
@@ -43,6 +45,19 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { PencilIcon, Trash2Icon } from "lucide-react";
+import {
+  color_def,
+  DummyHabitLogSummarySettings,
+  HabitLogSummarySettings,
+} from "./dummy";
+import CustomToast from "@/components/organisms/CustomToast";
+import LogSummarys from "./LogSummarys";
+import {
+  readUserSettingConfig,
+  upsertUserSettingConfig,
+} from "@/app/actions/user_setting_configs";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Tabsコンポーネントをインポート
 
 const DAY_DIFF = 20;
 
@@ -56,33 +71,56 @@ const HabitTracker = () => {
   const [endDate, setEndDate] = useState(defaultEndDate);
   const { user, loading: _authLoading } = useAuth(); // ★ 認証状態を取得
   const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
+  const [habitItemInfos, setHabitItemInfos] = useState<HabitItemInfo[]>([]);
   const [treeItems, setTreeItems] = useState<TreeItem[]>([]); // ★ 初期値を空配列に変更
   const [readHabitlogs, setReadHabitLogs] = useState<DbHabitLog[]>([]);
 
-  // ★ ログの編集・削除関連のstate
+  // ログの編集・削除関連のstate
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLogEditDialogOpen, setIsLogEditDialogOpen] = useState(false);
   const [editingLogData, setEditingLogData] = useState<DbHabitLog | null>(null);
   const [logToDelete, setLogToDelete] = useState<DbHabitLog | null>(null);
-  // ★ ポップオーバーの開閉状態
+  const [habitLogSummarySettings, setHabitLogSummarySettings] =
+    useState<HabitLogSummarySettings | null>(null);
+  // ポップオーバーの開閉状態
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  // ★ ポップオーバー表示中のログデータ
+  // ポップオーバー表示中のログデータ
   const [popoverLogData, setPopoverLogData] = useState<DbHabitLog | null>(null);
-  // ★ ポップオーバーのアンカー要素 (◆ボタン)
+  // ポップオーバーのアンカー要素 (◆ボタン)
   const [popoverAnchorEl, setPopoverAnchorEl] =
     useState<HTMLButtonElement | null>(null);
 
   const [ganttExpandedCategories, setGanttExpandedCategories] = useState<
     Record<string, boolean>
   >({});
+
   // userId が常に number 型になるように修正。
   // user.userid が存在しない場合は 0 を設定（0 が無効なユーザーIDであることを想定）。
   const userId: number = user?.userid ?? 0;
 
+  // habitLogSummarySettings の前の値を保持するための ref
+  const prevHabitLogSummarySettingsRef = useRef<HabitLogSummarySettings | null>(
+    null
+  ); // 初期値を null に設定
+
   const refreshItems = useCallback(() => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
+    // ガードを通過したことを確認するログ
+    console.log(
+      "[refreshItems] Proceeding after guard. user.userid:",
+      user?.userid,
+      "Effective userId for fetch:",
+      userId
+    );
+
     startTransition(async () => {
       try {
+        // 実際にAPIを呼び出す直前のログ
+        console.log(
+          "[refreshItems] INSIDE startTransition - Calling fetchHabitDataForUI with userId:",
+          userId
+        );
+
         const {
           habitItems: fetchedHabitItems,
           habitItemTreeRaw: fetchedHabitItemTreeRaw,
@@ -102,6 +140,13 @@ const HabitTracker = () => {
       }
     });
   }, [userId, user?.userid]); // userId と、その元となる user?.userid を依存配列に追加
+
+  // ユーザー情報が変更された際に habitItems をリフレッシュするための useEffect
+  useEffect(() => {
+    if (user?.userid) {
+      refreshItems();
+    }
+  }, [user?.userid, refreshItems]); // refreshItems は useCallback でメモ化されているため依存配列に含める
 
   const refreshHabitLogs = useCallback(async () => {
     if (!user?.userid || userId === 0) return;
@@ -134,16 +179,142 @@ const HabitTracker = () => {
     setGanttExpandedCategories(initialExpanded);
   }, [treeItems]);
 
+  //HabitItemInfo
+  useEffect(() => {
+    if (habitItems.length > 0 && color_def.length > 0) {
+      const newHabitItemInfos = habitItems.map((habitItem) => {
+        // color_def からランダムに色を選択
+        const randomColorIndex = Math.floor(Math.random() * color_def.length);
+        return {
+          id: habitItem.id, // HabitItem の ID を使用
+          info_string: color_def[randomColorIndex],
+        };
+      });
+      // console.log("newHabitItemInfos", newHabitItemInfos);
+      // HabitItemInfo")
+      setHabitItemInfos(newHabitItemInfos);
+    }
+  }, [habitItems]); // habitItems が変更されたときに実行
+
   useEffect(() => {
     if (user?.userid) {
-      refreshItems();
+      const userId = user.userid;
+      const settingType = "habit_log_summary_table"; // 設定タイプを定義
+
+      const loadAndSetSummarySettings = async () => {
+        try {
+          const existingConfig = await readUserSettingConfig(
+            userId,
+            settingType
+          );
+          if (existingConfig && existingConfig.log_summary_settings) {
+            // DBに設定が存在する場合
+            setHabitLogSummarySettings(
+              existingConfig.log_summary_settings as HabitLogSummarySettings
+            );
+          } else {
+            // DBに設定が存在しない場合、ダミー設定を作成してDBに保存し、stateにもセット
+            console.log(
+              `No settings found for ${settingType}, creating dummy settings.`
+            );
+
+            const newOrderId = String(crypto.randomUUID());
+            const allHabitItemIds = habitItems.map((item) => item.id);
+            const dummySettings: HabitLogSummarySettings["logSummary"][string] =
+              {
+                name: "新しいサマリ",
+                description: "新しいサマリの説明です。",
+                filtersHabitItemIds: allHabitItemIds, // 初期状態ではフィルターなし
+                type: "1day", // デフォルトタイプ
+                isExpanded: true, // 最初は展開しておく
+              };
+            let newSettingsState: HabitLogSummarySettings;
+            if (!habitLogSummarySettings) {
+              newSettingsState = {
+                logSummary: { [newOrderId]: dummySettings },
+                globalLogSummaryDisplayOrder: [newOrderId],
+              };
+            } else {
+              newSettingsState = {
+                ...habitLogSummarySettings,
+                logSummary: {
+                  ...habitLogSummarySettings.logSummary,
+                  [newOrderId]: dummySettings,
+                },
+                globalLogSummaryDisplayOrder: [
+                  ...habitLogSummarySettings.globalLogSummaryDisplayOrder,
+                  newOrderId,
+                ],
+              };
+            }
+
+            // upsertUserSettingConfig を呼び出し、その結果でステートを更新
+            const newConfig = await upsertUserSettingConfig(
+              userId,
+              settingType,
+              newSettingsState
+            );
+            if (newConfig && newConfig.log_summary_settings) {
+              setHabitLogSummarySettings(
+                newConfig.log_summary_settings as HabitLogSummarySettings
+              );
+            } else {
+              // Fallback if upsert doesn't return new config, set local dummy
+              setHabitLogSummarySettings(DummyHabitLogSummarySettings());
+            }
+            // setHabitLogSummarySettings(dummySettings); // ← この直接的な呼び出しを避ける
+          }
+        } catch (error) {
+          console.error("Failed to load or upsert LogSummarySettings:", error);
+          toast.error("サマリー設定の読み込みまたは作成に失敗しました。");
+          // エラー時にもフォールバックとしてダミー設定を使うか、nullのままにするか検討
+          setHabitLogSummarySettings(DummyHabitLogSummarySettings());
+        }
+      };
+
+      loadAndSetSummarySettings();
     }
-  }, [user?.userid, refreshItems]);
+  }, [user?.userid, habitItems, habitLogSummarySettings]);
+
   useEffect(() => {
     if (user?.userid) {
       refreshHabitLogs();
     }
   }, [user?.userid, defaultStartDate, defaultEndDate, refreshHabitLogs]); // userId を user?.userid に変更
+
+  // habitLogSummarySettings が変更されたらDBに保存する useEffect
+  useEffect(() => {
+    // habitLogSummarySettings が初期値(null)から変更された後、かつユーザーIDが存在する場合に実行
+    if (
+      habitLogSummarySettings &&
+      user?.userid &&
+      prevHabitLogSummarySettingsRef.current !== habitLogSummarySettings // 実際に値が変更されたか確認
+    ) {
+      const persistSettings = async () => {
+        if (user?.userid === undefined) {
+          console.log("User ID is undefined, skipping summary settings load.");
+          return;
+        }
+        try {
+          await upsertUserSettingConfig(
+            user.userid,
+            "habit_log_summary_table",
+            habitLogSummarySettings // 現在のステートを保存
+          );
+          // console.log("User settings updated in DB via useEffect:", habitLogSummarySettings);
+        } catch (error) {
+          console.error(
+            "Failed to update user settings in DB via useEffect:",
+            error
+          );
+          toast.error("サマリー設定の自動保存に失敗しました。");
+        }
+      };
+      persistSettings();
+    }
+    // 現在の habitLogSummarySettings の値を ref に保存
+    prevHabitLogSummarySettingsRef.current = habitLogSummarySettings;
+  }, [habitLogSummarySettings, user?.userid]); // habitLogSummarySettings または user.userid が変更されたら実行
 
   // item_id (number) から習慣名 (string) を取得するヘルパー関数 (useCallbackでメモ化)
   const getHabitItemNameById = useCallback(
@@ -160,6 +331,27 @@ const HabitTracker = () => {
     const foundItem = treeItems.find((item) => item.id === parentIdNum);
     return foundItem?.name || "カテゴリ不明";
   };
+
+  // ★ ポップオーバーを閉じるハンドラー
+  const handlePopoverClose = useCallback(() => {
+    setIsPopoverOpen(false);
+    setPopoverLogData(null);
+    setPopoverAnchorEl(null);
+  }, []);
+
+  // ★ ログ編集ダイアログを開く汎用ハンドラー
+  const openEditDialogForLog = useCallback(
+    (logToEdit: DbHabitLog) => {
+      console.log("openEditDialogForLog called with:", logToEdit);
+      setEditingLogData(logToEdit);
+      setIsLogEditDialogOpen(true);
+      // ポップオーバーが開いている場合は閉じる
+      if (isPopoverOpen) {
+        handlePopoverClose();
+      }
+    },
+    [isPopoverOpen, handlePopoverClose]
+  );
 
   const toggleHabitAdd = useCallback(
     async (habitId: string, habitName: string) => {
@@ -202,9 +394,17 @@ const HabitTracker = () => {
           ); // ★ DAO関数を呼び出し
 
           if (newLog) {
-            toast.success(`「${habitName}」を記録しました。`, {
-              description: `${format(today, "yyyy年M月d日", { locale: ja })}`,
-            });
+            toast.custom((t) => (
+              <CustomToast
+                toastId={t}
+                message={`「${habitName}」を記録しました。`}
+                submessage={`${format(today, "yyyy年M月d日", {
+                  locale: ja,
+                })}`}
+                buttonTitle="編集"
+                onEditClick={() => openEditDialogForLog(newLog)}
+              />
+            ));
             await refreshHabitLogs(); // ログリストを再読み込みしてUIを更新
           } else {
             toast.error("記録の追加に失敗しました。");
@@ -215,7 +415,8 @@ const HabitTracker = () => {
         }
       });
     },
-    [user, readHabitlogs, refreshHabitLogs] // startTransition は安定しているので削除
+    // [user, readHabitlogs, refreshHabitLogs] // startTransition は安定しているので削除
+    [user, readHabitlogs, refreshHabitLogs, openEditDialogForLog]
   );
 
   // const handleLogEditDialogOpen = (logToEdit: DbHabitLog) => {
@@ -286,6 +487,15 @@ const HabitTracker = () => {
               locale: ja,
             })}`,
           });
+          toast.custom((t) => (
+            <CustomToast
+              toastId={t}
+              message={`「${habitName}」の記録を削除しました。`}
+              submessage={`${format(today, "yyyy年M月d日", {
+                locale: ja,
+              })}`}
+            />
+          ));
           await refreshHabitLogs();
         } else {
           console.log("deleteHabit error", userId, item_id, formattedDate);
@@ -299,7 +509,7 @@ const HabitTracker = () => {
         setLogToDelete(null);
       }
     });
-  }, [user, logToDelete, refreshHabitLogs, getHabitItemNameById]);
+  }, [user, logToDelete, refreshHabitLogs, getHabitItemNameById, today]);
 
   const dates = generateDates(startDate, endDate);
 
@@ -326,13 +536,6 @@ const HabitTracker = () => {
     },
     []
   );
-
-  // ★ ポップオーバーを閉じるハンドラー
-  const handlePopoverClose = useCallback(() => {
-    setIsPopoverOpen(false);
-    setPopoverLogData(null);
-    setPopoverAnchorEl(null);
-  }, []);
 
   // ★ 編集ボタンクリック時のハンドラー
   const handleEditClick = useCallback(() => {
@@ -380,20 +583,17 @@ const HabitTracker = () => {
         );
 
         if (success) {
-          toast.success(
-            `「${getHabitItemNameById(
-              editingLogData.item_id
-            )}」の記録を更新しました。`,
-            {
-              description: `${format(
-                parseISO(editingLogData.done_at),
-                "yyyy年M月d日",
-                {
-                  locale: ja,
-                }
-              )}`,
-            }
-          );
+          toast.custom((t) => (
+            <CustomToast
+              toastId={t}
+              message={`「${getHabitItemNameById(
+                editingLogData.item_id
+              )}」の記録を更新しました。`}
+              submessage={`${format(today, "yyyy年M月d日", {
+                locale: ja,
+              })}`}
+            />
+          ));
           await refreshHabitLogs(); // ログを再取得してGanttChartを更新
           handleLogEditDialogClose(); // ダイアログを閉じる
         } else {
@@ -410,6 +610,7 @@ const HabitTracker = () => {
     getHabitItemNameById,
     userId, // userId を追加
     handleLogEditDialogClose, // handleLogEditDialogClose を追加
+    today,
   ]);
 
   // ★ 削除確認ダイアログのキャンセルハンドラー
@@ -417,6 +618,29 @@ const HabitTracker = () => {
     setIsDeleteDialogOpen(false);
     setLogToDelete(null); // 削除対象のログデータをクリア
   }, []);
+
+  // const ColorDisplayTest = ({
+  //   title,
+  //   colors,
+  // }: {
+  //   title: string;
+  //   colors: string[];
+  // }) => (
+  //   <div className="mb-4 p-4 border rounded-md">
+  //     <h3 className="text-lg font-semibold mb-2">{title}</h3>
+  //     <div className="flex flex-wrap gap-2">
+  //       {colors.map((color, index) => (
+  //         <div
+  //           key={index}
+  //           className="p-2 border rounded"
+  //           style={{ borderColor: color, backgroundColor: "#ffffff" }} // 背景は白で固定
+  //         >
+  //           <span style={{ color: color }}>テキスト ({color})</span>
+  //         </div>
+  //       ))}
+  //     </div>
+  //   </div>
+  // );
 
   return (
     <div className="space-y-6">
@@ -435,17 +659,6 @@ const HabitTracker = () => {
         onGoToNextRange={goToNextRange}
       />
 
-      {/* ここにGanttChartコンポーネントを追加します */}
-      <GanttChart
-        habitItems={habitItems}
-        habitLogs={readHabitlogs}
-        treeItems={treeItems}
-        startDate={startDate}
-        endDate={endDate}
-        onLogClick={handleGanttLogClick}
-        expandedCategories={ganttExpandedCategories} // ★ 追加
-        onToggleCategory={toggleGanttCategory} // ★ 追加
-      />
       {/* 編集ダイアログ */}
       {editingLogData && ( // editingLogData がある場合のみ DialogEdit をレンダリング（タイトル設定のため）
         <DialogEdit
@@ -530,6 +743,46 @@ const HabitTracker = () => {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
       />
+
+      {/* Tabsコンポーネントを使用して表示を切り替える */}
+      <Tabs defaultValue="gantt-chart" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="gantt-chart">ガントチャート</TabsTrigger>
+          <TabsTrigger value="log-summary">ログサマリ</TabsTrigger>
+        </TabsList>
+        <TabsContent value="gantt-chart">
+          <GanttChart
+            habitItems={habitItems}
+            habitItemInfos={habitItemInfos}
+            habitLogs={readHabitlogs}
+            treeItems={treeItems}
+            startDate={startDate}
+            endDate={endDate}
+            onLogClick={handleGanttLogClick}
+            expandedCategories={ganttExpandedCategories}
+            onToggleCategory={toggleGanttCategory}
+          />
+        </TabsContent>
+        <TabsContent value="log-summary">
+          <LogSummarys
+            habitItems={habitItems}
+            habitItemInfos={habitItemInfos}
+            habitLogs={readHabitlogs}
+            startDate={startDate}
+            endDate={endDate}
+            onLogClick={handleGanttLogClick}
+            habitLogSummarySettings={habitLogSummarySettings}
+            setHabitLogSummarySettings={setHabitLogSummarySettings}
+            // updateSettingsInDb={updateSettingsInDb}
+          />
+        </TabsContent>
+      </Tabs>
+      {/* <div className="mt-8 p-4 border-t">
+        <h2 className="text-xl font-bold mb-4">
+          カラーパレット テキスト表示テスト
+        </h2>
+        <ColorDisplayTest title="テスト" colors={color_def} />
+      </div> */}
     </div>
   );
 };

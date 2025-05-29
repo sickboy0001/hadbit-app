@@ -12,6 +12,11 @@ export interface HabitItem {
   created_at: string; // ISO 8601 形式の文字列
 }
 
+export interface HabitItemInfo {
+  id: number;
+  info_string: string;
+}
+
 // habit_item_tree の情報を含む HabitItem
 export type HabitItemWithTreeInfo = HabitItem & {
   parent_id: number | null; // habit_item_tree.parent_id
