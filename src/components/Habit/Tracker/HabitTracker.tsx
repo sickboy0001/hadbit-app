@@ -53,7 +53,7 @@ import {
   getLogSummarySettingsOrCreateDummy,
   persistLogSummarySettings,
 } from "../ClientApi/HabitSettingClientApi";
-import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
+import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 
 const DAY_DIFF = 20;
 

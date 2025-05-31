@@ -59,7 +59,14 @@ export function Header() {
       <header className="text-gray-600 body-font">
         <div className="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
           <Link href="/" className="font-bold text-base sm:text-2xl">
-            Hadbit
+            <div>
+              <img
+                src="/image/title-small.png"
+                alt="title-small"
+                width="150"
+                height="40"
+              />
+            </div>
           </Link>
           <nav className="md:mr-auto md:ml-4 md:py-1 md:pl-4 md:border-l md:border-gray-400	flex flex-wrap items-center text-base justify-center">
             <NavigationMenu>

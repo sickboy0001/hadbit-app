@@ -39,7 +39,10 @@ const StartPage = () => {
   return (
     <div className="p-4">
       {/* Optional: Add some padding around the content */}
-      <h1 className="text-3xl font-bold mb-4">Hadbit Tacker</h1>
+
+      <div>
+        <img src="/image/title-big.png" alt="別の画像" />
+      </div>
       <p className="mb-6">「習慣づける」ための「トラッカー」</p>
 
       <article className="markdown">
