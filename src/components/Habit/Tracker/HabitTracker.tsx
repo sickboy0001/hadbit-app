@@ -9,14 +9,7 @@ import React, {
 } from "react";
 import PresetButtonsSection from "../organisms/PresetButtonsSection";
 import DateControls from "./DateControls";
-import {
-  addDays,
-  format,
-  isEqual,
-  parseISO,
-  startOfDay,
-  subDays,
-} from "date-fns";
+import { addDays, format, parseISO, startOfDay, subDays } from "date-fns";
 import {
   addHabitLogEntry,
   deleteHabitLogByIdEntry,
@@ -365,21 +358,21 @@ const HabitTracker = () => {
       }
 
       // 既に今日記録されているかチェック (habitlogs state を使用)
-      const isAlreadyCompletedToday = readHabitlogs.some(
-        (log) =>
-          log.item_id === itemId &&
-          isEqual(startOfDay(parseISO(log.done_at)), todayDate)
-      );
+      // const isAlreadyCompletedToday = readHabitlogs.some(
+      //   (log) =>
+      //     log.item_id === itemId &&
+      //     isEqual(startOfDay(parseISO(log.done_at)), todayDate)
+      // );
 
-      if (isAlreadyCompletedToday) {
-        showCustomToast({
-          message: `「${habitName}」は既に本日記録済みです。`,
-          submessage: "同じ記録は1日に1回までです。",
-          type: "success", // CustomToast に info タイプがないため success で代用
-        });
+      // if (isAlreadyCompletedToday) {
+      //   showCustomToast({
+      //     message: `「${habitName}」は既に本日記録済みです。`,
+      //     submessage: "同じ記録は1日に1回までです。",
+      //     type: "success", // CustomToast に info タイプがないため success で代用
+      //   });
 
-        return;
-      }
+      //   return;
+      // }
 
       startTransition(async () => {
         try {
@@ -418,7 +411,7 @@ const HabitTracker = () => {
         }
       });
     },
-    [user, readHabitlogs, refreshHabitLogs, openEditDialogForLog]
+    [user, refreshHabitLogs, openEditDialogForLog]
   );
 
   // Group preset buttons using treeItems
