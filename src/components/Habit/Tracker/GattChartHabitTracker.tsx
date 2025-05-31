@@ -39,6 +39,12 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   expandedCategories,
   onToggleCategory,
 }) => {
+  const componentId = useRef(
+    // デバッグ用にコンポーネントIDを生成
+    `GattChartHabitTracker-${Math.random().toString(36).substr(2, 9)}`
+  ).current;
+  console.log(`[${componentId}] GattChartHabitTracker rendered`);
+
   const dates = generateDates(startDate, endDate);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // console.log("GattChartHabitTracker called", habitItemInfos);
@@ -132,8 +138,10 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   return (
     <TooltipProvider>
       {/* ref を追加してスクロールコンテナへの参照を取得 */}
-      <div className="overflow-x-auto" ref={scrollContainerRef}>
+      <div>
         <h2 className="text-xl font-semibold">■記録（ガントチャート）</h2>
+      </div>
+      <div className="overflow-x-auto" ref={scrollContainerRef}>
         <table className="mt-2 min-w-full divide-y divide-gray-200 border border-gray-300">
           <thead className="bg-gray-50">
             <tr>

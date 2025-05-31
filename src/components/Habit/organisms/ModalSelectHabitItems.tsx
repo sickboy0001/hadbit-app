@@ -69,23 +69,25 @@ const SelectHabitItemsModal: React.FC<SelectHabitItemsModalProps> = ({
         </DialogHeader>
         <ScrollArea className="h-[300px] w-full rounded-md border p-4">
           <div className="space-y-2">
-            {habitItems.map((item) => (
-              <div key={item.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`habit-${item.id}`}
-                  checked={currentSelectedIds.has(item.id)}
-                  onCheckedChange={(checked) =>
-                    handleCheckboxChange(item.id, Boolean(checked))
-                  }
-                />
-                <label
-                  htmlFor={`habit-${item.id}`}
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  {item.name}
-                </label>
-              </div>
-            ))}
+            {habitItems.map((item) => {
+              return (
+                <div key={item.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`habit-${item.id}`}
+                    checked={currentSelectedIds.has(item.id)}
+                    onCheckedChange={(checked) =>
+                      handleCheckboxChange(item.id, Boolean(checked))
+                    }
+                  />
+                  <label
+                    htmlFor={`habit-${item.id}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {item.name}
+                  </label>
+                </div>
+              );
+            })}
           </div>
         </ScrollArea>
         <DialogFooter>

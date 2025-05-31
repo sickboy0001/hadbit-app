@@ -19,8 +19,8 @@ import {
 } from "lucide-react";
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
-import { HabitLogSummarySettings } from "./dummy";
 import { Input } from "@/components/ui/input"; // Inputを追加
+import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
 
 interface LogSummaryItemProps {
   summarySetting: HabitLogSummarySettings["logSummary"][string];
@@ -179,7 +179,7 @@ const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
               onChange={handleDescriptionChange}
               onBlur={handleDescriptionBlur}
               onKeyDown={handleDescriptionKeyDown}
-              className="text-sm text-gray-600 ml-2 h-8 sm:block" // スタイル調整
+              className="text-sm text-gray-600 ml-2 h-8 sm:block sm:w-64" // スタイル調整
               autoFocus
             />
           ) : (
@@ -191,7 +191,7 @@ const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
             </p>
           )}
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             className="h-7 w-7"
             onClick={() => moveSummaryOrder(order, "up")}
@@ -200,7 +200,7 @@ const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
             <ArrowUp className="h-4 w-4" />
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             className="h-7 w-7"
             onClick={() => moveSummaryOrder(order, "down")}

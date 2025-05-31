@@ -104,19 +104,43 @@ const DailyLogItem: React.FC<DailyLogItemProps> = React.memo(
 );
 DailyLogItem.displayName = "DailyLogItem";
 
-const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = ({
-  habitItems,
-  habitLogs,
-  habitItemInfos = [],
-  startDate,
-  endDate,
-  onLogClick,
-  displayType,
-}) => {
+const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
+  props: LogSummaryDailyProps
+) => {
+  const {
+    habitItems,
+    habitLogs,
+    habitItemInfos = [],
+    startDate,
+    endDate,
+    onLogClick,
+    displayType,
+  } = props;
+
   const componentId = useRef(
     `LogSummaryDaily-${Math.random().toString(36).substr(2, 9)}`
   ).current;
   console.log("LogSummaryDaily rendered", displayType);
+
+  const prevPropsRef = useRef<LogSummaryDailyProps | null>(null);
+  useEffect(() => {
+    if (prevPropsRef.current) {
+      Object.keys(props).forEach((key) => {
+        const propKey = key as keyof LogSummaryDailyProps;
+        if (
+          prevPropsRef.current &&
+          prevPropsRef.current[propKey] !== props[propKey]
+        ) {
+          console.log(
+            `[${componentId}] Prop changed: ${propKey}`,
+            prevPropsRef.current[propKey],
+            props[propKey]
+          );
+        }
+      });
+    }
+    prevPropsRef.current = props; // props は LogSummaryDailyInternal が受け取る props オブジェクト
+  }); // 依存配列なしで毎レンダリング時に実行
 
   // const renderOverallStart = performance.now();
   // const [thisHabitLogs, setThisHabitLogs] = useState<DbHabitLog[]>([]);

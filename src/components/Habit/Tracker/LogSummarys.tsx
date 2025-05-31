@@ -1,18 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { DbHabitLog } from "@/app/actions/habit_logs"; // このパスをプロジェクトに合わせて調整してください
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
-import { HabitLogSummarySettings } from "./dummy"; // useAuth と upsertUserSettingConfig のインポートは不要になる
 
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import LogSummaryItem from "./LogSummaryItem";
 import ModalSelectHabitItems from "../organisms/ModalSelectHabitItems";
+import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
+import {
+  addNewSummaryToSettings,
+  getLeafHabitItems,
+} from "../ClientApi/HabitSettingService";
+import { TreeItem } from "@/types/habit/ui";
 
 interface LogSummarysProps {
   habitItems: HabitItem[];
   habitLogs: DbHabitLog[];
+  treeItems: TreeItem[];
   habitItemInfos: HabitItemInfo[];
   startDate: Date;
   endDate: Date;
@@ -33,6 +39,7 @@ interface LogSummarysProps {
 const LogSummarys: React.FC<LogSummarysProps> = ({
   habitItems,
   habitLogs,
+  treeItems,
   habitItemInfos = [],
   startDate,
   endDate,
@@ -75,32 +82,11 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
     }
     const newOrderId = String(crypto.randomUUID());
     const allHabitItemIds = habitItems.map((item) => item.id);
-    const newSummarySetting: HabitLogSummarySettings["logSummary"][string] = {
-      name: "新しいサマリ",
-      description: "新しいサマリの説明です。",
-      filtersHabitItemIds: allHabitItemIds, // 初期状態ではフィルターなし
-      type: "1day", // デフォルトタイプ
-      isExpanded: true, // 最初は展開しておく
-    };
-    let newSettingsState: HabitLogSummarySettings;
-    if (!habitLogSummarySettings) {
-      newSettingsState = {
-        logSummary: { [newOrderId]: newSummarySetting },
-        globalLogSummaryDisplayOrder: [newOrderId],
-      };
-    } else {
-      newSettingsState = {
-        ...habitLogSummarySettings,
-        logSummary: {
-          ...habitLogSummarySettings.logSummary,
-          [newOrderId]: newSummarySetting,
-        },
-        globalLogSummaryDisplayOrder: [
-          ...habitLogSummarySettings.globalLogSummaryDisplayOrder,
-          newOrderId,
-        ],
-      };
-    }
+    const newSettingsState = addNewSummaryToSettings(
+      habitLogSummarySettings,
+      newOrderId,
+      allHabitItemIds
+    );
     setHabitLogSummarySettings(newSettingsState);
     // updateSettingsInDb(newSettingsState);
   };
@@ -212,6 +198,11 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
     // updateSettingsInDb(newSettingsState);
   };
 
+  const leafhabitItems = useMemo(() => {
+    console.log("leafhabitItems called ", treeItems);
+    return getLeafHabitItems(treeItems, habitItems);
+  }, [treeItems, habitItems]);
+
   if (habitLogSummarySettings === null) {
     return <div>loading・・・</div>;
   }
@@ -257,7 +248,7 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
         <ModalSelectHabitItems
           isOpen={isSelectHabitModalOpen}
           onOpenChange={setIsSelectHabitModalOpen}
-          habitItems={habitItems}
+          habitItems={leafhabitItems}
           selectedHabitItemIds={
             habitLogSummarySettings.logSummary[selectingHabitForOrderId]
               ?.filtersHabitItemIds || []

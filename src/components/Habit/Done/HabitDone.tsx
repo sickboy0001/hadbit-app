@@ -37,7 +37,7 @@ import {
   fetchHabitDataForUI,
   fetchSortedHabitLogs,
   updateHabitLogEntry,
-} from "../data/DaoHabitLog";
+} from "../ClientApi/HabitLogClientApi";
 
 const DAY_DEF = 365;
 

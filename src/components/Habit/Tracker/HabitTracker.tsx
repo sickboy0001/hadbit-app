@@ -17,14 +17,13 @@ import {
   startOfDay,
   subDays,
 } from "date-fns";
-import { toast } from "sonner";
 import {
   addHabitLogEntry,
   deleteHabitLogByIdEntry,
   fetchHabitDataForUI,
   fetchSortedHabitLogs,
   updateHabitLogEntry,
-} from "../data/DaoHabitLog";
+} from "../ClientApi/HabitLogClientApi";
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
 import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,19 +44,16 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { PencilIcon, Trash2Icon } from "lucide-react";
-import {
-  color_def,
-  DummyHabitLogSummarySettings,
-  HabitLogSummarySettings,
-} from "./dummy";
-import CustomToast from "@/components/organisms/CustomToast";
+import { color_def } from "./dummy";
+import { showCustomToast } from "@/components/organisms/CustomToast";
 import LogSummarys from "./LogSummarys";
-import {
-  readUserSettingConfig,
-  upsertUserSettingConfig,
-} from "@/app/actions/user_setting_configs";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Tabsコンポーネントをインポート
+import {
+  getLogSummarySettingsOrCreateDummy,
+  persistLogSummarySettings,
+} from "../ClientApi/HabitSettingClientApi";
+import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
 
 const DAY_DIFF = 20;
 
@@ -103,6 +99,10 @@ const HabitTracker = () => {
     null
   ); // 初期値を null に設定
 
+  // useEffect(() => {
+  //   console.log("HabitTracker mounted");
+  // });
+
   const refreshItems = useCallback(() => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
     // ガードを通過したことを確認するログ
@@ -135,7 +135,11 @@ const HabitTracker = () => {
         console.log("nowTreeItems", nowTreeItems);
         setTreeItems(nowTreeItems);
       } catch (error) {
-        toast.error("リストの読み込みに失敗しました。");
+        showCustomToast({
+          message: "リストの読み込みに失敗しました。",
+          submessage: "サーバーとの通信中にエラーが発生した可能性があります。",
+          type: "error",
+        });
         console.error("Failed to fetch habit items:", error);
       }
     });
@@ -164,7 +168,11 @@ const HabitTracker = () => {
         setReadHabitLogs(sortedLogs);
         console.log("habitlogs", sortedLogs);
       } catch (error) {
-        toast.error("習慣記録の読み込みに失敗しました。");
+        showCustomToast({
+          message: "習慣記録の読み込みに失敗しました。",
+          submessage: "データの取得中に問題が発生しました。",
+          type: "error",
+        });
         console.error("Failed to fetch habit logs:", error);
       }
     });
@@ -202,73 +210,33 @@ const HabitTracker = () => {
       const settingType = "habit_log_summary_table"; // 設定タイプを定義
 
       const loadAndSetSummarySettings = async () => {
+        if (
+          habitLogSummarySettings !== null &&
+          prevHabitLogSummarySettingsRef.current !== undefined
+        ) {
+          return;
+        }
         try {
-          const existingConfig = await readUserSettingConfig(
+          // ★ DaoHabitLog の関数を呼び出す
+          const allHabitItemIds = habitItems.map((item) => item.id);
+          const settings = await getLogSummarySettingsOrCreateDummy(
             userId,
-            settingType
+            settingType,
+            allHabitItemIds
           );
-          if (existingConfig && existingConfig.log_summary_settings) {
-            // DBに設定が存在する場合
-            setHabitLogSummarySettings(
-              existingConfig.log_summary_settings as HabitLogSummarySettings
-            );
-          } else {
-            // DBに設定が存在しない場合、ダミー設定を作成してDBに保存し、stateにもセット
-            console.log(
-              `No settings found for ${settingType}, creating dummy settings.`
-            );
-
-            const newOrderId = String(crypto.randomUUID());
-            const allHabitItemIds = habitItems.map((item) => item.id);
-            const dummySettings: HabitLogSummarySettings["logSummary"][string] =
-              {
-                name: "新しいサマリ",
-                description: "新しいサマリの説明です。",
-                filtersHabitItemIds: allHabitItemIds, // 初期状態ではフィルターなし
-                type: "1day", // デフォルトタイプ
-                isExpanded: true, // 最初は展開しておく
-              };
-            let newSettingsState: HabitLogSummarySettings;
-            if (!habitLogSummarySettings) {
-              newSettingsState = {
-                logSummary: { [newOrderId]: dummySettings },
-                globalLogSummaryDisplayOrder: [newOrderId],
-              };
-            } else {
-              newSettingsState = {
-                ...habitLogSummarySettings,
-                logSummary: {
-                  ...habitLogSummarySettings.logSummary,
-                  [newOrderId]: dummySettings,
-                },
-                globalLogSummaryDisplayOrder: [
-                  ...habitLogSummarySettings.globalLogSummaryDisplayOrder,
-                  newOrderId,
-                ],
-              };
-            }
-
-            // upsertUserSettingConfig を呼び出し、その結果でステートを更新
-            const newConfig = await upsertUserSettingConfig(
-              userId,
-              settingType,
-              newSettingsState
-            );
-            if (newConfig && newConfig.log_summary_settings) {
-              setHabitLogSummarySettings(
-                newConfig.log_summary_settings as HabitLogSummarySettings
-              );
-            } else {
-              // Fallback if upsert doesn't return new config, set local dummy
-              setHabitLogSummarySettings(DummyHabitLogSummarySettings());
-            }
-            // setHabitLogSummarySettings(dummySettings); // ← この直接的な呼び出しを避ける
-          }
+          setHabitLogSummarySettings(settings);
         } catch (error) {
-          console.error("Failed to load or upsert LogSummarySettings:", error);
-          toast.error("サマリー設定の読み込みまたは作成に失敗しました。");
-          // エラー時にもフォールバックとしてダミー設定を使うか、nullのままにするか検討
-          setHabitLogSummarySettings(DummyHabitLogSummarySettings());
+          // DAO関数内でエラーハンドリングとフォールバックが行われるため、
+          // ここでのエラーハンドリングは簡略化できるか、UI固有のエラー表示に集中できる
+          console.error(
+            "Error in loadAndSetSummarySettings (UI layer):",
+            error
+          );
+          showCustomToast({
+            message: "サマリー設定の読み込みまたは作成に失敗しました。",
+            submessage: "設定データの処理中にエラーが発生しました。",
+            type: "error",
+          });
         }
       };
 
@@ -290,27 +258,42 @@ const HabitTracker = () => {
       user?.userid &&
       prevHabitLogSummarySettingsRef.current !== habitLogSummarySettings // 実際に値が変更されたか確認
     ) {
-      const persistSettings = async () => {
-        if (user?.userid === undefined) {
-          console.log("User ID is undefined, skipping summary settings load.");
-          return;
-        }
-        try {
-          await upsertUserSettingConfig(
-            user.userid,
-            "habit_log_summary_table",
-            habitLogSummarySettings // 現在のステートを保存
-          );
-          // console.log("User settings updated in DB via useEffect:", habitLogSummarySettings);
-        } catch (error) {
-          console.error(
-            "Failed to update user settings in DB via useEffect:",
-            error
-          );
-          toast.error("サマリー設定の自動保存に失敗しました。");
-        }
-      };
-      persistSettings();
+      // サーバーアクションの呼び出しを startTransition でラップ
+      startTransition(() => {
+        const persistSettings = async () => {
+          if (user?.userid === undefined) {
+            // このチェックは上の user?.userid でカバーされるが念のため
+            console.log(
+              "User ID is undefined, skipping summary settings persistence."
+            );
+            return;
+          }
+          try {
+            const success = await persistLogSummarySettings(
+              user.userid, // undefinedでないことは上で確認済み
+              "habit_log_summary_table",
+              habitLogSummarySettings // 現在のステートを保存
+            );
+            if (!success) {
+              showCustomToast({
+                message: "サマリー設定の自動保存に失敗しました。",
+                submessage: "データベースへの保存中に問題が発生しました。",
+                type: "error",
+              });
+            }
+          } catch (error) {
+            // DAO側でconsole.errorは出力される想定
+            console.error("Error in persistSettings (UI layer):", error);
+            showCustomToast({
+              message:
+                "サマリー設定の自動保存中に予期せぬエラーが発生しました。",
+              submessage: "しばらくしてからもう一度お試しください。",
+              type: "error",
+            });
+          }
+        };
+        persistSettings();
+      });
     }
     // 現在の habitLogSummarySettings の値を ref に保存
     prevHabitLogSummarySettingsRef.current = habitLogSummarySettings;
@@ -361,14 +344,23 @@ const HabitTracker = () => {
       console.log("[togglehabitAdd]called", habitId, habitName);
 
       if (!user?.userid) {
-        toast.error("ユーザー情報が見つかりません。");
+        showCustomToast({
+          message: "ユーザー情報が見つかりません。",
+          submessage: "ログインしているか確認してください。",
+          type: "error",
+        });
+
         return;
       }
       const userId = user.userid;
       const itemId = parseInt(habitId, 10);
 
       if (isNaN(itemId)) {
-        toast.error("無効な習慣IDです。");
+        showCustomToast({
+          message: "無効な習慣IDです。",
+          submessage: "システムエラーが発生しました。",
+          type: "error",
+        });
         return;
       }
 
@@ -380,7 +372,12 @@ const HabitTracker = () => {
       );
 
       if (isAlreadyCompletedToday) {
-        toast.info(`「${habitName}」は既に本日記録済みです。`);
+        showCustomToast({
+          message: `「${habitName}」は既に本日記録済みです。`,
+          submessage: "同じ記録は1日に1回までです。",
+          type: "success", // CustomToast に info タイプがないため success で代用
+        });
+
         return;
       }
 
@@ -394,37 +391,36 @@ const HabitTracker = () => {
           ); // ★ DAO関数を呼び出し
 
           if (newLog) {
-            toast.custom((t) => (
-              <CustomToast
-                toastId={t}
-                message={`「${habitName}」を記録しました。`}
-                submessage={`${format(today, "yyyy年M月d日", {
-                  locale: ja,
-                })}`}
-                buttonTitle="編集"
-                onEditClick={() => openEditDialogForLog(newLog)}
-              />
-            ));
+            showCustomToast({
+              message: `「${habitName}」を記録しました。`,
+              submessage: `${format(today, "yyyy年M月d日", {
+                locale: ja,
+              })}`,
+              buttonTitle: "編集",
+              onEditClick: () => openEditDialogForLog(newLog),
+              type: "success",
+            });
             await refreshHabitLogs(); // ログリストを再読み込みしてUIを更新
           } else {
-            toast.error("記録の追加に失敗しました。");
+            showCustomToast({
+              message: "記録の追加に失敗しました。",
+              submessage: "データベースへの保存中に問題が発生しました。",
+              type: "error",
+            });
           }
         } catch (error) {
           console.error("Failed to insert habit log for today:", error);
-          toast.error("記録の追加中にエラーが発生しました。");
+          showCustomToast({
+            message: "記録の追加中にエラーが発生しました。",
+            submessage: "予期せぬエラーが発生しました。",
+            type: "error",
+          });
         }
       });
     },
-    // [user, readHabitlogs, refreshHabitLogs] // startTransition は安定しているので削除
     [user, readHabitlogs, refreshHabitLogs, openEditDialogForLog]
   );
 
-  // const handleLogEditDialogOpen = (logToEdit: DbHabitLog) => {
-  //   console.log("[HabitDone] Opening edit dialog for log:", logToEdit);
-  //   setEditingLogData(logToEdit); // 編集対象のログオブジェクト全体をセット
-  //   // ダイアログの初期値をセット
-  //   setIsLogEditDialogOpen(true); // ダイアログを開く
-  // };
   // Group preset buttons using treeItems
   const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
     (acc, topLevelItem) => {
@@ -465,7 +461,11 @@ const HabitTracker = () => {
     const userId: number = user?.userid ?? 0;
     console.log("handleConfirmDelete called", userId, logToDelete);
     if (!logToDelete || !userId) {
-      toast.error("削除対象の記録またはユーザー情報が見つかりません。");
+      showCustomToast({
+        message: "削除対象の記録またはユーザー情報が見つかりません。",
+        submessage: "システムエラーが発生しました。",
+        type: "error",
+      });
       setIsDeleteDialogOpen(false);
       return;
     }
@@ -476,40 +476,38 @@ const HabitTracker = () => {
 
     startTransition(async () => {
       try {
-        // deleteHabitLog 関数を呼び出す (HabitTracker.tsx からインポートまたは同様の関数を定義)
-        // この関数は userId, itemId, formattedDate を引数に取る想定
-        // const { deleteHabitLog } = await import("@/app/actions/habit_logs"); // 遅延インポート
         const success = await deleteHabitLogByIdEntry(userId, id); // ★ DAO関数を呼び出し
 
         if (success) {
-          toast.success(`「${habitName}」の記録を削除しました。`, {
-            description: `${format(parseISO(done_at), "yyyy年M月d日", {
+          showCustomToast({
+            message: `「${habitName}」の記録を削除しました。`,
+            submessage: `${format(parseISO(done_at), "yyyy年M月d日", {
               locale: ja,
             })}`,
+            type: "success",
           });
-          toast.custom((t) => (
-            <CustomToast
-              toastId={t}
-              message={`「${habitName}」の記録を削除しました。`}
-              submessage={`${format(today, "yyyy年M月d日", {
-                locale: ja,
-              })}`}
-            />
-          ));
           await refreshHabitLogs();
         } else {
           console.log("deleteHabit error", userId, item_id, formattedDate);
-          toast.error("記録の削除に失敗しました。");
+          showCustomToast({
+            message: "記録の削除に失敗しました。",
+            submessage: "データベースからの削除中に問題が発生しました。",
+            type: "error",
+          });
         }
       } catch (error) {
         console.error("Failed to delete habit log:", error);
-        toast.error("記録の削除中にエラーが発生しました。");
+        showCustomToast({
+          message: "記録の削除中にエラーが発生しました。",
+          submessage: "予期せぬエラーが発生しました。",
+          type: "error",
+        });
       } finally {
         setIsDeleteDialogOpen(false);
         setLogToDelete(null);
       }
     });
-  }, [user, logToDelete, refreshHabitLogs, getHabitItemNameById, today]);
+  }, [user, logToDelete, refreshHabitLogs, getHabitItemNameById]);
 
   const dates = generateDates(startDate, endDate);
 
@@ -566,12 +564,21 @@ const HabitTracker = () => {
   // ★ 編集ダイアログの保存ボタンクリック時のハンドラー
   const handleLogEditDialogSave = useCallback(async () => {
     if (!userId) {
-      toast.error("ユーザー情報が見つかりません。");
+      showCustomToast({
+        message: "ユーザー情報が見つかりません。",
+        submessage: "ログインしているか確認してください。",
+        type: "error",
+      });
+
       return;
     }
     if (editingLogData === null) {
       console.log("handleLogEditDialogSave called but editingLogData is null");
-      toast.error("編集データなし");
+      showCustomToast({
+        message: "編集データがありません。",
+        submessage: "システムエラーが発生しました。",
+        type: "error",
+      });
       return;
     }
     startTransition(async () => {
@@ -583,25 +590,33 @@ const HabitTracker = () => {
         );
 
         if (success) {
-          toast.custom((t) => (
-            <CustomToast
-              toastId={t}
-              message={`「${getHabitItemNameById(
-                editingLogData.item_id
-              )}」の記録を更新しました。`}
-              submessage={`${format(today, "yyyy年M月d日", {
-                locale: ja,
-              })}`}
-            />
-          ));
+          showCustomToast({
+            message: `「${getHabitItemNameById(
+              editingLogData.item_id
+            )}」の記録を更新しました。`,
+            submessage: `${format(today, "yyyy年M月d日", {
+              locale: ja,
+            })}`,
+            type: "success",
+          });
           await refreshHabitLogs(); // ログを再取得してGanttChartを更新
           handleLogEditDialogClose(); // ダイアログを閉じる
         } else {
-          toast.error("記録の更新に失敗しました。");
+          showCustomToast({
+            message: "記録の更新に失敗しました。",
+            submessage: "データベースへの保存中に問題が発生しました。",
+            type: "error",
+          });
         }
       } catch (error) {
         console.error("Failed to update habit log:", error);
-        toast.error("記録の更新中にエラーが発生しました。");
+        showCustomToast({
+          message: "障害が発生しました。",
+          submessage: "記録の更新中にエラーが発生しました。",
+          type: "error",
+          // buttonTitle: "詳細を見る",
+          // onEditClick: () => { /* ... */ }
+        });
       }
     });
   }, [
@@ -619,28 +634,24 @@ const HabitTracker = () => {
     setLogToDelete(null); // 削除対象のログデータをクリア
   }, []);
 
-  // const ColorDisplayTest = ({
-  //   title,
-  //   colors,
-  // }: {
-  //   title: string;
-  //   colors: string[];
-  // }) => (
-  //   <div className="mb-4 p-4 border rounded-md">
-  //     <h3 className="text-lg font-semibold mb-2">{title}</h3>
-  //     <div className="flex flex-wrap gap-2">
-  //       {colors.map((color, index) => (
-  //         <div
-  //           key={index}
-  //           className="p-2 border rounded"
-  //           style={{ borderColor: color, backgroundColor: "#ffffff" }} // 背景は白で固定
-  //         >
-  //           <span style={{ color: color }}>テキスト ({color})</span>
-  //         </div>
-  //       ))}
-  //     </div>
-  //   </div>
-  // );
+  // ★ テスト用トースト呼び出しボタン (開発中のみ表示するなどの工夫も可能)
+  const handleTestSuccessToast = () => {
+    showCustomToast({
+      message: "テスト成功メッセージ",
+      submessage: "これは成功トーストのサブメッセージです。",
+      type: "success",
+      buttonTitle: "編集 (テスト)",
+      onEditClick: () => console.log("テスト編集ボタンクリック"),
+    });
+  };
+
+  const handleTestErrorToast = () => {
+    showCustomToast({
+      message: "テストエラーメッセージ",
+      submessage: "これはエラートーストのサブメッセージです。",
+      type: "error",
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -767,6 +778,7 @@ const HabitTracker = () => {
           <LogSummarys
             habitItems={habitItems}
             habitItemInfos={habitItemInfos}
+            treeItems={treeItems}
             habitLogs={readHabitlogs}
             startDate={startDate}
             endDate={endDate}
@@ -783,6 +795,21 @@ const HabitTracker = () => {
         </h2>
         <ColorDisplayTest title="テスト" colors={color_def} />
       </div> */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="space-y-6">
+          {/* ... (既存のコンポーネント) ... */}
+          <div className="mt-8 p-4 border-t">
+            <h2 className="text-xl font-bold mb-4">トーストテスト</h2>
+            <div className="flex space-x-2">
+              <Button onClick={handleTestSuccessToast}>成功トースト表示</Button>
+              <Button onClick={handleTestErrorToast} variant="destructive">
+                エラートースト表示
+              </Button>
+            </div>
+          </div>
+          {/* ... (既存のコンポーネントの続き) ... */}
+        </div>
+      )}
     </div>
   );
 };
