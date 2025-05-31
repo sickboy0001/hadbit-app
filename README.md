@@ -24,24 +24,9 @@ npm run dev
 - UI: Tailwind CSS, shadcn/ui
 - データベース: Supabase
 - デプロイ: Vercel
-- その他: 
-- ▽react-google-charts, dnd-tree
 
-#### ▽チャート、タイムラインについて
-タイムラインチャート、ガントチャートは必要の認識  
-利用有用なツールは以下かなと考えています  
-「react-google-chart」が一番無難かも・・・
-
-- 比較
-  - https://zenn.dev/2timesbottle/articles/4ca75466772711
-- Customizable React Gantt Chart
-  - https://svar.dev/react/gantt/
-- gantt chart react-google-chart
-  - https://www.react-google-charts.com/examples/gantt
-  - 軽量な静的タイムライン表示
-- react-calendar-timeline
-  - https://github.com/namespace-ee/react-calendar-timeline
-  - 配色は調整できそう
+#### チャート、タイムラインについて
+ガントチャートは自作になりました。といっても、実際には生成AIに問い合わせた結果
 
 
 ## 4.デモ or スクリーンショット
@@ -72,9 +57,30 @@ Github:[GitHub](https://github.com/sickboy0001/hadbit-app)
 ### ■システム配置
 ```
 sickboy0001/hadbit-app https://github.com/sickboy0001/hadbit-app
+├ doc                →ドキュメント
 ├ public
 ├ src                →ソース
 │ ├ app              →アプリ用ソース
+│ │ ├ action         →サーバーサイドアクション
+│ │ │ ├ user         →ユーザー周り
+│ │ │ │ ├ edit.ts    →ユーザー編集
+│ │ │ │ └ read.ts    →ユーザー読み取り
+│ │ │ ├ auth.ts      →認証周り
+│ │ │ ├ habit_item_tree.ts      →DAO：ツリー回り
+│ │ │ ├ habit_items.ts          →DAO：項目マスタ
+│ │ │ ├ habit_logs.ts           →DAO：記録
+│ │ │ └ user_setting_configs.ts →DAO：設定周り 画面設定含む
+│ │ ├ habit          →Habitページディレクトリ
+│ │ │ ├ done         →Habit/done ページ 実施画面
+│ │ │ │ └ page.tsx   →Page本体
+│ │ │ ├ itemmentenenance →Habit/mentenance ページ(未使用)
+│ │ │ │ └ page.tsx   →Page本体
+│ │ │ ├ logimport    →Habit/logimport ページ ログインポート
+│ │ │ │ └ page.tsx   →Page本体
+│ │ │ ├ manager      →Habit/manager ページ 習慣メンテ画面
+│ │ │ │ └ page.tsx   →Page本体
+│ │ │ └ tracker      →Habit/tracker ページ メイン画面
+│ │ │   └ page.tsx   →Page本体
 │ │ ├ start          →ページ用ディレクトリ
 │ │ │ └ page.tsx     →ページ本体
 │ │ ├ test/tree      →ページ用ディレクトリ
@@ -84,15 +90,64 @@ sickboy0001/hadbit-app https://github.com/sickboy0001/hadbit-app
 │ │ ├ layout.tsx    →レイアウト
 │ │ └ page.tsx      →ページ本体
 │ ├ components      →実装
-│ │ ├ HabitItem/Management  →機能単位での実装・習慣化項目メンテナンス
-│ │ │ ├ ManagementTree.tsx           →機能の実装部分
-│ │ │ └ PageHabitItemManagement.tsx　→Pagexxxxは、各ページから呼ばれるもの
-│ │ ├ dnd-tree
-│ │ ├ test/tree       　→テスト用の機能
+│ │ ├ dnd-tree                  →DND用のコンポーネント
+│ │ │ ├ SortableTree.tsx        →
+│ │ │ ├ SortableTreeItem.tsx　  →
+│ │ │ ├ useSortableTree.ts　    →
+│ │ │ └ util.ts　               →DND用Util
+│ │ ├ Habit                 →ドメイン実装部分
+│ │ │ ├ ClientApi                  →クライアント側サービス
+│ │ │ │ ├ HabitLogClientApi.ts     →サーバーサイド呼び出し用
+│ │ │ │ ├ HabitSettingClientApi.ts →サーバーサイド呼び出し用
+│ │ │ │ └ HabitSettingService.ts   →クライアント内でのサービス
+│ │ │ ├ Done                       →
+│ │ │ │ ├ HabitDone.tsx            →実装
+│ │ │ │ ├ PageHabitDone.tsx        →ページからの呼び出されよう
+│ │ │ │ └ ・・・   
+│ │ │ ├ LogImport                  →
+│ │ │ │ ├ HabitLogImport.tsx       →実装
+│ │ │ │ ├ PageHabitLogImport.tsx   →ページからの呼び出されよう
+│ │ │ │ └ ・・・   
+│ │ │ ├ Management                 →
+│ │ │ │ ├ HabitManagement.tsx      →実装
+│ │ │ │ ├ PageHabitManagement.tsx  →ページからの呼び出されよう
+│ │ │ │ └ ・・・   
+│ │ │ ├ organisms                  →
+│ │ │ │ ├ Modalxxxxxxxxxx.tsx      →モーダル要処理
+│ │ │ │ └ PressButtonsSection.tsx  →ボタン一覧   
+│ │ │ └ Tracker                    →
+│ │ │   ├ HabitTracker.tsx         →実装
+│ │ │   └ PageHabitTracker.tsx     →ページからの呼び出されよう
+│ │ ├ molecules                    →AtomicDesign
+│ │ │ ├ ComfirmationDialog         →
+│ │ │ ├ DialogEdit                 →
+│ │ │ ├ LoginSuccessAlert          →
+│ │ │ └ LogoutSuccessAlert         →
+│ │ ├ organisms                    →AtomicDesign
+│ │ │ ├ CustomToast.tsx            →
+│ │ │ ├ Header.tsx                 →
+│ │ │ ├ LoginDialog.tsx            →
+│ │ │ └ startPage.tsx              →
 │ │ ├ ui                →shadcnui用
 │ │ └ Header.tsx        →layoutで使う情報
-│ └ lib
-│    └ utils.ts
+│ ├ constants
+│ │  └ menu.ts          →Menu用定数
+│ ├ contexts
+│ │  └ AuthContext.tsx  →User用のコンテキスト
+│ └ lib             →
+│ │  ├ datetime.ts  →
+│ │  ├ habit.ts　　 →
+│ │  ├ user.ts　　　→
+│ │  └ utils.ts　　 →
+│ └ type                          →
+│    ├ habit　　　　　　　　　　　　→
+│    │ ├ habit_item.ts　　　　　　 →
+│    │ ├ logSummaryItemSetting.ts →
+│    │ └ ui.ts　　　　　　　　　　　→
+│    ├ supabase.ts                →
+│    ├ TypeHeatMap.ts             →
+│    ├ user.ts                    →
+│    └ supabase.ts                →
 ├ .gitignore
 ├ README.md
 ├ components.json
@@ -112,68 +167,20 @@ sickboy0001/hadbit-app https://github.com/sickboy0001/hadbit-app
 |習慣化メンテナンス|HabitMaintenance|-|習慣化マスタの表示順を親子関係含めて登録できる|
 |習慣化メンテナンス|HabitMaintenance|-|習慣化マスタのゲストへの表示、非表示を制御できる|
 |習慣化メンテナンス|HabitMaintenance|-|実施登録時への展開時のOpenCloseを登録できる。|
-|習慣化登録|HabitDone|登録|ログイン者が自分の実施した習慣を登録できる|
-|習慣化参照|HabitView|参照|ログイン者が自分の習慣化の状況を確認できる。|
-|習慣化参照（ゲスト）|HabitView|ゲスト参照|ログイン者以外でも習慣化の状況確認できる|
-
-
+|習慣記録|HabitDone|登録|ログイン者が自分の実施した習慣を登録できる|
+|習慣トラッカー|HabitTracker|参照|ログイン者が自分の習慣化の状況を確認できる。|
+|習慣トラッカー（ゲスト）|HabitTracker|ゲスト参照|ログイン者以外でも習慣化の状況確認できる|
 
 
 ### ■画面設計
 - tailwindcss、shadcnuiを利用すること。
 - AtomicDesingを意識した構成にすること。
 
-メンテナンス画面
-![Alt text](doc/_ProjectSpecification/_021_ui/ui_habit_maintenance.drawio.png)
-
-実施画面
-![alt text](doc/_ProjectSpecification/_021_ui/ui_habit_done.drawio.png)
-
-参照画面
-![Alt text](doc/_ProjectSpecification/_021_ui/ui_habit_view.drawio.png)
-
 
 ## 7.経緯
-- 2025/06末、リリース目標
+- 2025/06/01 おおむね実用可能に・・・
 
 ## 8.既知の課題
-- [ ] 問題についての記載
-
-test　test testtest  testtesttesttest
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] ログイン情報が消える・・
+- [ ] 習慣化の項目に対して、色を指定する（現行ランダム）
+- [ ] 習慣化の項目、項目事に備考入れるテンプレート持てるように（体重だとｘｘKgのｘｘ部分入れれるようにする）

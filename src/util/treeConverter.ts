@@ -113,7 +113,7 @@ export function buildTreeFromHabitAndParentReration(
         }
         return {
           id: habitItem.id, // TreeItem の id
-          name: habitItem.name,
+          name: habitItem.short_name,
           children: buildNodeRecursive(habitItem.id), // 再帰的に子ノードを構築
           expanded: false, // デフォルトは折りたたみ
           // 必要であれば habitItem 自体を含めることも検討できます:

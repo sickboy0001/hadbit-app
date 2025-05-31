@@ -36,9 +36,9 @@ const DateControls: React.FC<DateControlsProps> = ({
       </div>
 
       {/* Date range navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex justify-items-start gap-2">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row justify-items-start gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <span>開始日:</span>
             <DatePicker
               date={startDate}
@@ -46,7 +46,7 @@ const DateControls: React.FC<DateControlsProps> = ({
               className="w-40"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <span>終了日:</span>
             <DatePicker
               date={endDate}
@@ -55,8 +55,7 @@ const DateControls: React.FC<DateControlsProps> = ({
             />
           </div>
         </div>
-
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto justify-end sm:justify-start">
           <Button variant="outline" size="sm" onClick={onGoToPreviousRange}>
             <ChevronLeft className="h-4 w-4 mr-1" /> 前の期間
           </Button>

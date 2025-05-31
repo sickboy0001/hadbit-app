@@ -50,7 +50,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       window.location.reload(); // ページ全体をリロード
     }
   };
-
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && !isLoading) {
+      handleLogin();
+    }
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -86,6 +90,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="col-span-3"
+              onKeyDown={handleKeyDown} // ★ Enterキー押下時の処理を追加
               disabled={isLoading} // ★ ローディング中は無効化
             />
           </div>

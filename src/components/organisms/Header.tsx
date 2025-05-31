@@ -19,13 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { headerNavItems } from "@/constants/menu";
-import { LoginDialog } from "./LoginDialog"; // ★ 作成した LoginDialog をインポート
-import { signOut } from "@/app/actions/auth"; // ★ ログアウトアクションをインポート
-import { useState } from "react"; // ★ useEffect を削除
+import { LoginDialog } from "./LoginDialog"; //  作成した LoginDialog をインポート
+import { signOut } from "@/app/actions/auth"; //  ログアウトアクションをインポート
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-// import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"; // ★ これをインポート
-// import { Database } from "@/types/supabase"; // ★ Database 型をインポート
-import { LoginSuccessAlert } from "@/components/molecules/LoginSuccessAlert"; // ★ パスを修正 (必要であれば)
+// import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"; // これをインポート
+// import { Database } from "@/types/supabase"; //  Database 型をインポート
+import { LoginSuccessAlert } from "@/components/molecules/LoginSuccessAlert"; // パスを修正 (必要であれば)
 import { LogoutSuccessAlert } from "../molecules/LogoutSuccessAlert";
 import { useAuth } from "@/contexts/AuthContext";
 import { ChevronDown, LogIn, LogOut } from "lucide-react";
@@ -45,14 +45,14 @@ export function Header() {
     }
   }, [user]); // user の変化を監視
 
-  // ★ ログアウト処理
+  //  ログアウト処理
   const handleSignOut = async () => {
     await signOut();
-    // setUser(null); // ★ サインアウト成功時に手動でユーザー状態をクリア
+    // setUser(null); //  サインアウト成功時に手動でユーザー状態をクリア
     router.push("/");
-    // ★ sessionStorage にログアウト成功フラグを立てる
+    //  sessionStorage にログアウト成功フラグを立てる
     sessionStorage.setItem("showLogoutSuccessMessage", "true");
-    window.location.reload(); // ★ ページ全体をリロードしてみる
+    window.location.reload(); //  ページ全体をリロードしてみる
   };
   return (
     <>
@@ -106,15 +106,18 @@ export function Header() {
           <div className="flex items-center space-x-4">
             {/* ログイン・ログアウトUIなど */}
             {loading ? (
-              <div className="h-9 w-20 animate-pulse rounded-md bg-muted"></div>
+              <div className="h-9 w-90 animate-pulse rounded-md bg-muted flex items-center justify-end">
+                読み取り中・・・
+              </div>
             ) : user ? (
               <>
-                <span className="hidden sm:inline-block text-sm text-muted-foreground truncate max-w-[60px]">
+                <span className="hidden sm:inline-block text-sm text-muted-foreground truncate max-w-[90px]">
                   {username}
                 </span>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" onClick={handleSignOut}>
+                    <Button variant="outline" onClick={handleSignOut}>
+                      LogOut
                       <LogOut className="h-5 w-5" />
                       <span className="sr-only">ログアウト</span>
                     </Button>
@@ -125,21 +128,26 @@ export function Header() {
                 </Tooltip>
               </>
             ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsLoginDialogOpen(true)}
-                  >
-                    <LogIn className="h-5 w-5" />
-                    <span className="sr-only">ログイン</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>ログイン</p>
-                </TooltipContent>
-              </Tooltip>
+              <>
+                <span className="hidden sm:inline-block text-sm font-bold text-blue-600 truncate max-w-[90px]">
+                  Guest
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsLoginDialogOpen(true)}
+                    >
+                      Login
+                      <LogIn className="h-5 w-5" />
+                      <span className="sr-only">ログイン</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>ログイン</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
           </div>
         </div>
