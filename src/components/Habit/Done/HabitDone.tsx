@@ -8,7 +8,7 @@ import {
   useTransition,
 } from "react";
 import DialogEdit from "@/components/molecules/DialogEdit"; // DialogEdit をインポート
-import { format, addDays, isEqual, startOfDay } from "date-fns";
+import { format, addDays, startOfDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
 
@@ -161,16 +161,16 @@ export default function HabitDone() {
       }
 
       // 既に今日記録されているかチェック (habitlogs state を使用)
-      const isAlreadyCompletedToday = readHabitlogs.some(
-        (log) =>
-          log.item_id === itemId &&
-          isEqual(startOfDay(parseISO(log.done_at)), todayDate)
-      );
+      // const isAlreadyCompletedToday = readHabitlogs.some(
+      //   (log) =>
+      //     log.item_id === itemId &&
+      //     isEqual(startOfDay(parseISO(log.done_at)), todayDate)
+      // );
 
-      if (isAlreadyCompletedToday) {
-        toast.info(`「${habitName}」は既に本日記録済みです。`);
-        return;
-      }
+      // if (isAlreadyCompletedToday) {
+      //   toast.info(`「${habitName}」は既に本日記録済みです。`);
+      //   return;
+      // }
 
       startTransition(async () => {
         try {
@@ -195,7 +195,7 @@ export default function HabitDone() {
         }
       });
     },
-    [user, readHabitlogs, refreshHabitLogs, startTransition] // 依存配列を更新
+    [user, refreshHabitLogs, startTransition] // 依存配列を更新
   );
 
   // readHabitlogs が更新されたら、selHabitlogs も全件で初期化（「全て」選択時の状態）
