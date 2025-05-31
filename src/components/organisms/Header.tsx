@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   NavigationMenu,
@@ -60,11 +60,13 @@ export function Header() {
         <div className="container mx-auto flex flex-wrap p-5 flex-col md:flex-row items-center">
           <Link href="/" className="font-bold text-base sm:text-2xl">
             <div>
-              <img
+              {/* imgタグをnext/imageのImageコンポーネントに置き換え */}
+              <Image
                 src="/image/title-small.png"
-                alt="title-small"
-                width="150"
-                height="40"
+                alt="HadbitTracker ロゴ" // より具体的なaltテキストを推奨
+                width={150} // 数値で指定
+                height={40} // 数値で指定
+                priority // ヘッダーのロゴはLCPの候補になるため、priorityを付与
               />
             </div>
           </Link>

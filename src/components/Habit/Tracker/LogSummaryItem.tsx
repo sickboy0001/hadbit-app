@@ -20,7 +20,7 @@ import {
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
 import { Input } from "@/components/ui/input"; // Inputを追加
-import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
+import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 
 interface LogSummaryItemProps {
   summarySetting: HabitLogSummarySettings["logSummary"][string];

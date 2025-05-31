@@ -1,6 +1,8 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Image from "next/image"; // next/image から Image をインポート
+
 const contents = `
 ### HadbitTracker
 ### ■動機（Incentive）：なぜ作ろうと思ったのか
@@ -40,9 +42,13 @@ const StartPage = () => {
     <div className="p-4">
       {/* Optional: Add some padding around the content */}
 
-      <div>
-        <img src="/image/title-big.png" alt="別の画像" />
-      </div>
+      <Image
+        src="/image/title-big.png"
+        alt="HadbitTracker タイトル" // より具体的なaltテキストを推奨
+        width={800} // 画像の実際の幅、または表示したい幅 (例: 800px)
+        height={200} // 画像の実際の高さ、または表示したい高さ (例: 200px)
+        priority // スタートページの主要な画像であるため、priorityを付与
+      />
       <p className="mb-6">「習慣づける」ための「トラッカー」</p>
 
       <article className="markdown">

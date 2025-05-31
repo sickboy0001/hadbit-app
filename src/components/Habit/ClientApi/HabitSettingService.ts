@@ -1,7 +1,7 @@
 "use client";
 
 import { HabitItem } from "@/types/habit/habit_item";
-import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
+import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 import { TreeItem } from "@/types/habit/ui";
 
 /**

@@ -4,7 +4,7 @@ import {
   readUserSettingConfig,
   upsertUserSettingConfig,
 } from "@/app/actions/user_setting_configs"; // readUserSettingConfig をインポート
-import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
+import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 import { addNewSummaryToSettings } from "./HabitSettingService";
 
 /**

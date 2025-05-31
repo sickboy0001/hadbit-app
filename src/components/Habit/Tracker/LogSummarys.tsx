@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import LogSummaryItem from "./LogSummaryItem";
 import ModalSelectHabitItems from "../organisms/ModalSelectHabitItems";
-import { HabitLogSummarySettings } from "@/types/habit/logSummaryItemSetting";
+import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 import {
   addNewSummaryToSettings,
   getLeafHabitItems,
