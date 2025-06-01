@@ -591,9 +591,24 @@ const HabitTracker = () => {
       {/* Tabsコンポーネントを使用して表示を切り替える */}
       <Tabs defaultValue="gantt-chart" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="gantt-chart">ガントチャート</TabsTrigger>
-          <TabsTrigger value="log-summary">ログサマリ</TabsTrigger>
-          <TabsTrigger value="done_history">記録（1年）</TabsTrigger>
+          <TabsTrigger
+            value="gantt-chart"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+          >
+            GanttChart
+          </TabsTrigger>
+          <TabsTrigger
+            value="log-summary"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+          >
+            LogSammary
+          </TabsTrigger>
+          <TabsTrigger
+            value="done_history"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+          >
+            Recorded（1year）
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="gantt-chart">
           <GanttChart

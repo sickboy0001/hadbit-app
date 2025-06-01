@@ -358,8 +358,10 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">■記録（サマリ）</h2>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">■LogSammary</h2>
+        </div>
         <Button variant="outline" size="sm" onClick={toggleAddSummary}>
           <PlusCircle className="mr-2 h-4 w-4" />
           ログサマリ追加

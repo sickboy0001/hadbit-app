@@ -292,7 +292,7 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     <TooltipProvider>
       {/* ref を追加してスクロールコンテナへの参照を取得 */}
       <div>
-        <h2 className="text-xl font-semibold">■記録（ガントチャート）</h2>
+        <h2 className="text-xl font-semibold">■GanttChart</h2>
       </div>
       <DateControls
         startDate={internalStartDate}

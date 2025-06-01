@@ -28,11 +28,12 @@ const DateControls: React.FC<DateControlsProps> = ({
     <>
       {/* Date range selection */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <h2 className="text-xl font-semibold">■期間</h2>
-        <h2 className="text-xl font-semibold">
+        <h4 className="text-lg ">◆期間</h4> {/* text-xl から text-lg に変更 */}
+        <h4 className="text-lg ">
+          {/* text-xl から text-lg に変更 */}
           {format(startDate, "yyyy年M月d日", { locale: ja })} -{" "}
           {format(endDate, "yyyy年M月d日", { locale: ja })}
-        </h2>
+        </h4>
       </div>
 
       {/* Date range navigation */}

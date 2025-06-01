@@ -398,6 +398,10 @@ export default function HabitDone() {
           onHabitSelect={toggleHabitSelection}
         />
         <div>
+          <div>
+            <h2 className="text-xl font-semibold"> ■Recorded（1year）</h2>
+          </div>
+
           <DateControls
             startDate={internalStartDate}
             endDate={internalEndDate}
