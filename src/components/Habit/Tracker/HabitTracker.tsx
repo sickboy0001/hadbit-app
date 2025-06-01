@@ -8,22 +8,19 @@ import React, {
   useState,
 } from "react";
 import PresetButtonsSection from "../organisms/PresetButtonsSection";
-import DateControls from "./DateControls";
-import { addDays, format, parseISO, startOfDay, subDays } from "date-fns";
+import { format, parseISO, startOfDay } from "date-fns";
 import {
   addHabitLogEntry,
   deleteHabitLogByIdEntry,
   fetchHabitDataForUI,
-  fetchSortedHabitLogs,
   updateHabitLogEntry,
 } from "../ClientApi/HabitLogClientApi";
-import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
+import { HabitItem } from "@/types/habit/habit_item";
 import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 import { mapTreeItemsToPresetDisplayItems } from "@/util/habitTreeConverters";
-import { generateDates } from "@/lib/datetime";
 import GanttChart from "./GattChartHabitTracker";
 
 import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
@@ -37,7 +34,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { PencilIcon, Trash2Icon } from "lucide-react";
-import { color_def } from "./dummy";
+// import { color_def } from "./dummy";
 import { showCustomToast } from "@/components/organisms/CustomToast";
 import LogSummarys from "./LogSummarys";
 
@@ -47,22 +44,19 @@ import {
   persistLogSummarySettings,
 } from "../ClientApi/HabitSettingClientApi";
 import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
+import HabitDone from "./HabitDone";
 
-const DAY_DIFF = 20;
+// const DAY_DIFF = 20;
 
 const HabitTracker = () => {
   // Default date range: Today and 13 days after (14 days total)
   const today = useMemo(() => new Date(), []); // today もメモ化
-  const defaultEndDate = useMemo(() => new Date(), []); // defaultEndDate をメモ化
-  const defaultStartDate = useMemo(() => addDays(today, -DAY_DIFF), [today]); // defaultStartDate をメモ化
 
-  const [startDate, setStartDate] = useState(defaultStartDate);
-  const [endDate, setEndDate] = useState(defaultEndDate);
   const { user, loading: _authLoading } = useAuth(); // ★ 認証状態を取得
   const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
-  const [habitItemInfos, setHabitItemInfos] = useState<HabitItemInfo[]>([]);
+  // const [, setHabitItemInfos] = useState<HabitItemInfo[]>([]);
   const [treeItems, setTreeItems] = useState<TreeItem[]>([]); // ★ 初期値を空配列に変更
-  const [readHabitlogs, setReadHabitLogs] = useState<DbHabitLog[]>([]);
+  // const [readHabitlogs, setReadHabitLogs] = useState<DbHabitLog[]>([]);
 
   // ログの編集・削除関連のstate
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -82,19 +76,19 @@ const HabitTracker = () => {
   const [ganttExpandedCategories, setGanttExpandedCategories] = useState<
     Record<string, boolean>
   >({});
+  const [refreshTriggerKey, setRefreshTriggerKey] = useState(0); // ★ 再読み込みトリガー用のstate
 
-  // userId が常に number 型になるように修正。
-  // user.userid が存在しない場合は 0 を設定（0 が無効なユーザーIDであることを想定）。
+  // userId が常に number 型になるように修正。user.userid が存在しない場合は 0 を設定（0 が無効なユーザーIDであることを想定）。
   const userId: number = user?.userid ?? 0;
 
   // habitLogSummarySettings の前の値を保持するための ref
   const prevHabitLogSummarySettingsRef = useRef<HabitLogSummarySettings | null>(
     null
   ); // 初期値を null に設定
-
-  // useEffect(() => {
-  //   console.log("HabitTracker mounted");
-  // });
+  // 子コンポーネントのデータ再読み込みをトリガーする関数
+  const triggerDataRefresh = useCallback(() => {
+    setRefreshTriggerKey((prevKey) => prevKey + 1);
+  }, []);
 
   const refreshItems = useCallback(() => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
@@ -145,32 +139,6 @@ const HabitTracker = () => {
     }
   }, [user?.userid, refreshItems]); // refreshItems は useCallback でメモ化されているため依存配列に含める
 
-  const refreshHabitLogs = useCallback(async () => {
-    if (!user?.userid || userId === 0) return;
-    // startDate と endDate を YYYY-MM-DD 形式の文字列に変換
-    const formattedStartDate = format(defaultStartDate, "yyyy-MM-dd");
-    const formattedEndDate = format(defaultEndDate, "yyyy-MM-dd");
-
-    startTransition(async () => {
-      try {
-        const sortedLogs = await fetchSortedHabitLogs(
-          userId,
-          formattedStartDate,
-          formattedEndDate
-        );
-        setReadHabitLogs(sortedLogs);
-        console.log("habitlogs", sortedLogs);
-      } catch (error) {
-        showCustomToast({
-          message: "習慣記録の読み込みに失敗しました。",
-          submessage: "データの取得中に問題が発生しました。",
-          type: "error",
-        });
-        console.error("Failed to fetch habit logs:", error);
-      }
-    });
-  }, [user, defaultStartDate, defaultEndDate, userId]); // startTransition は安定しているので削除, userId を追加
-
   // treeItems が変更されたら、ganttExpandedCategories を初期化 (例: 全て展開)
   useEffect(() => {
     const initialExpanded: Record<string, boolean> = {};
@@ -181,21 +149,21 @@ const HabitTracker = () => {
   }, [treeItems]);
 
   //HabitItemInfo
-  useEffect(() => {
-    if (habitItems.length > 0 && color_def.length > 0) {
-      const newHabitItemInfos = habitItems.map((habitItem) => {
-        // color_def からランダムに色を選択
-        const randomColorIndex = Math.floor(Math.random() * color_def.length);
-        return {
-          id: habitItem.id, // HabitItem の ID を使用
-          info_string: color_def[randomColorIndex],
-        };
-      });
-      // console.log("newHabitItemInfos", newHabitItemInfos);
-      // HabitItemInfo")
-      setHabitItemInfos(newHabitItemInfos);
-    }
-  }, [habitItems]); // habitItems が変更されたときに実行
+  // useEffect(() => {
+  //   if (habitItems.length > 0 && color_def.length > 0) {
+  //     const newHabitItemInfos = habitItems.map((habitItem) => {
+  //       // color_def からランダムに色を選択
+  //       const randomColorIndex = Math.floor(Math.random() * color_def.length);
+  //       return {
+  //         id: habitItem.id, // HabitItem の ID を使用
+  //         info_string: color_def[randomColorIndex],
+  //       };
+  //     });
+  //     // console.log("newHabitItemInfos", newHabitItemInfos);
+  //     // HabitItemInfo")
+  //     setHabitItemInfos(newHabitItemInfos);
+  //   }
+  // }, [habitItems]); // habitItems が変更されたときに実行
 
   useEffect(() => {
     if (user?.userid) {
@@ -210,7 +178,7 @@ const HabitTracker = () => {
           return;
         }
         try {
-          // ★ DaoHabitLog の関数を呼び出す
+          // DaoHabitLog の関数を呼び出す
           const allHabitItemIds = habitItems.map((item) => item.id);
           const settings = await getLogSummarySettingsOrCreateDummy(
             userId,
@@ -236,12 +204,6 @@ const HabitTracker = () => {
       loadAndSetSummarySettings();
     }
   }, [user?.userid, habitItems, habitLogSummarySettings]);
-
-  useEffect(() => {
-    if (user?.userid) {
-      refreshHabitLogs();
-    }
-  }, [user?.userid, defaultStartDate, defaultEndDate, refreshHabitLogs]); // userId を user?.userid に変更
 
   // habitLogSummarySettings が変更されたらDBに保存する useEffect
   useEffect(() => {
@@ -308,14 +270,14 @@ const HabitTracker = () => {
     return foundItem?.name || "カテゴリ不明";
   };
 
-  // ★ ポップオーバーを閉じるハンドラー
+  // ポップオーバーを閉じるハンドラー
   const handlePopoverClose = useCallback(() => {
     setIsPopoverOpen(false);
     setPopoverLogData(null);
     setPopoverAnchorEl(null);
   }, []);
 
-  // ★ ログ編集ダイアログを開く汎用ハンドラー
+  // ログ編集ダイアログを開く汎用ハンドラー
   const openEditDialogForLog = useCallback(
     (logToEdit: DbHabitLog) => {
       console.log("openEditDialogForLog called with:", logToEdit);
@@ -357,23 +319,6 @@ const HabitTracker = () => {
         return;
       }
 
-      // 既に今日記録されているかチェック (habitlogs state を使用)
-      // const isAlreadyCompletedToday = readHabitlogs.some(
-      //   (log) =>
-      //     log.item_id === itemId &&
-      //     isEqual(startOfDay(parseISO(log.done_at)), todayDate)
-      // );
-
-      // if (isAlreadyCompletedToday) {
-      //   showCustomToast({
-      //     message: `「${habitName}」は既に本日記録済みです。`,
-      //     submessage: "同じ記録は1日に1回までです。",
-      //     type: "success", // CustomToast に info タイプがないため success で代用
-      //   });
-
-      //   return;
-      // }
-
       startTransition(async () => {
         try {
           const newLog = await addHabitLogEntry(
@@ -381,7 +326,7 @@ const HabitTracker = () => {
             itemId,
             formattedDate,
             null
-          ); // ★ DAO関数を呼び出し
+          ); // DAO関数を呼び出し
 
           if (newLog) {
             showCustomToast({
@@ -393,7 +338,7 @@ const HabitTracker = () => {
               onEditClick: () => openEditDialogForLog(newLog),
               type: "success",
             });
-            await refreshHabitLogs(); // ログリストを再読み込みしてUIを更新
+            triggerDataRefresh(); // ログ追加成功時にデータ再読み込みをトリガー
           } else {
             showCustomToast({
               message: "記録の追加に失敗しました。",
@@ -411,7 +356,7 @@ const HabitTracker = () => {
         }
       });
     },
-    [user, refreshHabitLogs, openEditDialogForLog]
+    [user, openEditDialogForLog, triggerDataRefresh]
   );
 
   // Group preset buttons using treeItems
@@ -425,7 +370,7 @@ const HabitTracker = () => {
     {}
   );
 
-  // ★ ガントチャートのカテゴリ開閉をトグルする関数
+  // ガントチャートのカテゴリ開閉をトグルする関数
   const toggleGanttCategory = useCallback((categoryId: string) => {
     setGanttExpandedCategories((prev) => ({
       ...prev,
@@ -433,23 +378,7 @@ const HabitTracker = () => {
     }));
   }, []);
 
-  // Handle start date change
-  const handleStartDateChange = (date: Date | undefined) => {
-    if (!date) return;
-
-    setStartDate(date);
-    setEndDate(addDays(date, DAY_DIFF));
-  };
-
-  // Handle end date change
-  const handleEndDateChange = (date: Date | undefined) => {
-    if (!date) return;
-
-    setEndDate(date);
-    setStartDate(subDays(date, DAY_DIFF));
-  };
-
-  // ★ 削除確認ダイアログの確定ハンドラー
+  // 削除確認ダイアログの確定ハンドラー
   const handleConfirmDelete = useCallback(async () => {
     const userId: number = user?.userid ?? 0;
     console.log("handleConfirmDelete called", userId, logToDelete);
@@ -479,7 +408,7 @@ const HabitTracker = () => {
             })}`,
             type: "success",
           });
-          await refreshHabitLogs();
+          triggerDataRefresh();
         } else {
           console.log("deleteHabit error", userId, item_id, formattedDate);
           showCustomToast({
@@ -500,23 +429,7 @@ const HabitTracker = () => {
         setLogToDelete(null);
       }
     });
-  }, [user, logToDelete, refreshHabitLogs, getHabitItemNameById]);
-
-  const dates = generateDates(startDate, endDate);
-
-  // Navigate to previous date range
-  const goToPreviousRange = () => {
-    const daysInRange = dates.length;
-    setStartDate(subDays(startDate, daysInRange));
-    setEndDate(subDays(endDate, daysInRange));
-  };
-
-  // Navigate to next date range
-  const goToNextRange = () => {
-    const daysInRange = dates.length;
-    setStartDate(addDays(startDate, daysInRange));
-    setEndDate(addDays(endDate, daysInRange));
-  };
+  }, [user, logToDelete, getHabitItemNameById, triggerDataRefresh]); //refreshHabitLogs,
 
   // ★ ログの◆をクリックしたときのハンドラー
   const handleGanttLogClick = useCallback(
@@ -592,7 +505,10 @@ const HabitTracker = () => {
             })}`,
             type: "success",
           });
-          await refreshHabitLogs(); // ログを再取得してGanttChartを更新
+          triggerDataRefresh(); // ★ ログ追加成功時にデータ再読み込みをトリガー
+
+          //
+          // reshHabitLogs(); // ログを再取得してGanttChartを更新
           handleLogEditDialogClose(); // ダイアログを閉じる
         } else {
           showCustomToast({
@@ -607,27 +523,26 @@ const HabitTracker = () => {
           message: "障害が発生しました。",
           submessage: "記録の更新中にエラーが発生しました。",
           type: "error",
-          // buttonTitle: "詳細を見る",
-          // onEditClick: () => { /* ... */ }
         });
       }
     });
   }, [
     editingLogData,
-    refreshHabitLogs,
+    // refreshHabitLogs,
     getHabitItemNameById,
     userId, // userId を追加
     handleLogEditDialogClose, // handleLogEditDialogClose を追加
     today,
+    triggerDataRefresh,
   ]);
 
-  // ★ 削除確認ダイアログのキャンセルハンドラー
+  // 削除確認ダイアログのキャンセルハンドラー
   const handleCancelDelete = useCallback(() => {
     setIsDeleteDialogOpen(false);
     setLogToDelete(null); // 削除対象のログデータをクリア
   }, []);
 
-  // ★ テスト用トースト呼び出しボタン (開発中のみ表示するなどの工夫も可能)
+  // テスト用トースト呼び出しボタン (開発中のみ表示するなどの工夫も可能)
   const handleTestSuccessToast = () => {
     showCustomToast({
       message: "テスト成功メッセージ",
@@ -654,15 +569,6 @@ const HabitTracker = () => {
         getParentName={getParentName} // 更新されたゲッター関数を使用
       />
 
-      <DateControls
-        startDate={startDate}
-        endDate={endDate}
-        onStartDateChange={handleStartDateChange}
-        onEndDateChange={handleEndDateChange}
-        onGoToPreviousRange={goToPreviousRange}
-        onGoToNextRange={goToNextRange}
-      />
-
       {/* 編集ダイアログ */}
       {editingLogData && ( // editingLogData がある場合のみ DialogEdit をレンダリング（タイトル設定のため）
         <DialogEdit
@@ -681,6 +587,40 @@ const HabitTracker = () => {
         </DialogEdit>
       )}
       {/* ポップオーバーコンポーネント */}
+
+      {/* Tabsコンポーネントを使用して表示を切り替える */}
+      <Tabs defaultValue="gantt-chart" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="gantt-chart">ガントチャート</TabsTrigger>
+          <TabsTrigger value="log-summary">ログサマリ</TabsTrigger>
+          <TabsTrigger value="done_history">記録（1年）</TabsTrigger>
+        </TabsList>
+        <TabsContent value="gantt-chart">
+          <GanttChart
+            // habitItems={habitItems}
+            // habitItemInfos={habitItemInfos}
+            // treeItems={treeItems}
+            onLogClick={handleGanttLogClick}
+            expandedCategories={ganttExpandedCategories}
+            onToggleCategory={toggleGanttCategory}
+            refreshTrigger={refreshTriggerKey}
+          />
+        </TabsContent>
+        <TabsContent value="log-summary">
+          <LogSummarys
+            // habitItems={habitItems}
+            // habitItemInfos={habitItemInfos}
+            // treeItems={treeItems}
+            onLogClick={handleGanttLogClick}
+            habitLogSummarySettings={habitLogSummarySettings}
+            setHabitLogSummarySettings={setHabitLogSummarySettings}
+            refreshTrigger={refreshTriggerKey}
+          />
+        </TabsContent>
+        <TabsContent value="done_history">
+          <HabitDone></HabitDone>
+        </TabsContent>
+      </Tabs>
 
       <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         {/* PopoverAnchor を使用して、動的にアンカー要素を指定 */}
@@ -748,60 +688,31 @@ const HabitTracker = () => {
         onCancel={handleCancelDelete}
       />
 
-      {/* Tabsコンポーネントを使用して表示を切り替える */}
-      <Tabs defaultValue="gantt-chart" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="gantt-chart">ガントチャート</TabsTrigger>
-          <TabsTrigger value="log-summary">ログサマリ</TabsTrigger>
-        </TabsList>
-        <TabsContent value="gantt-chart">
-          <GanttChart
-            habitItems={habitItems}
-            habitItemInfos={habitItemInfos}
-            habitLogs={readHabitlogs}
-            treeItems={treeItems}
-            startDate={startDate}
-            endDate={endDate}
-            onLogClick={handleGanttLogClick}
-            expandedCategories={ganttExpandedCategories}
-            onToggleCategory={toggleGanttCategory}
-          />
-        </TabsContent>
-        <TabsContent value="log-summary">
-          <LogSummarys
-            habitItems={habitItems}
-            habitItemInfos={habitItemInfos}
-            treeItems={treeItems}
-            habitLogs={readHabitlogs}
-            startDate={startDate}
-            endDate={endDate}
-            onLogClick={handleGanttLogClick}
-            habitLogSummarySettings={habitLogSummarySettings}
-            setHabitLogSummarySettings={setHabitLogSummarySettings}
-            // updateSettingsInDb={updateSettingsInDb}
-          />
-        </TabsContent>
-      </Tabs>
-      {/* <div className="mt-8 p-4 border-t">
-        <h2 className="text-xl font-bold mb-4">
-          カラーパレット テキスト表示テスト
-        </h2>
-        <ColorDisplayTest title="テスト" colors={color_def} />
-      </div> */}
       {process.env.NODE_ENV === "development" && (
-        <div className="space-y-6">
-          {/* ... (既存のコンポーネント) ... */}
-          <div className="mt-8 p-4 border-t">
-            <h2 className="text-xl font-bold mb-4">トーストテスト</h2>
-            <div className="flex space-x-2">
-              <Button onClick={handleTestSuccessToast}>成功トースト表示</Button>
-              <Button onClick={handleTestErrorToast} variant="destructive">
-                エラートースト表示
-              </Button>
+        <>
+          {" "}
+          <div className="space-y-6">
+            {/* ... (既存のコンポーネント) ... */}
+            <div className="mt-8 p-4 border-t">
+              <h2 className="text-xl font-bold mb-4">トーストテスト</h2>
+              <div className="flex space-x-2">
+                <Button onClick={handleTestSuccessToast}>
+                  成功トースト表示
+                </Button>
+                <Button onClick={handleTestErrorToast} variant="destructive">
+                  エラートースト表示
+                </Button>
+              </div>
             </div>
+            {/* ... (既存のコンポーネントの続き) ... */}
           </div>
-          {/* ... (既存のコンポーネントの続き) ... */}
-        </div>
+          {/* <div className="mt-8 p-4 border-t">
+            <h2 className="text-xl font-bold mb-4">
+              カラーパレット テキスト表示テスト
+            </h2>
+            <ColorDisplayTest title="テスト" colors={color_def} />
+          </div> */}
+        </>
       )}
     </div>
   );

@@ -12,15 +12,11 @@ import { format, addDays, startOfDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
 
-import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
+import { TreeItem } from "@/types/habit/ui";
 import { HabitItem } from "@/types/habit/habit_item";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 
-import PresetButtonsSection from "@/components/Habit/organisms/PresetButtonsSection";
-import {
-  mapTreeItemsToPresetDisplayItems, // 新しいファイルからインポート
-} from "@/util/habitTreeConverters";
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { parseISO } from "date-fns/parseISO"; // ★ parseISO をインポート
 import ConfirmationDialog from "@/components/molecules/ConfirmationDialog"; // ★ ConfirmationDialog をインポート
@@ -32,8 +28,7 @@ import { TypeHeatMapData } from "@/types/TypeHeatMap";
 
 import HeatMapTableHabitLog from "./HeatMapTableHabitLog";
 import {
-  addHabitLogEntry,
-  deleteDayHabitLogEntry,
+  deleteHabitLogByIdEntry,
   fetchHabitDataForUI,
   fetchSortedHabitLogs,
   updateHabitLogEntry,
@@ -140,51 +135,6 @@ export default function HabitDone() {
     [habitItems] // habits state が変更されたら再生成
   );
 
-  const toggleHabitForToday = useCallback(
-    async (habitId: string, habitName: string) => {
-      const today = new Date();
-      const todayDate = startOfDay(today);
-
-      const formattedDate = format(todayDate, "yyyy-MM-dd");
-
-      if (!user?.userid) {
-        toast.error("ユーザー情報が見つかりません。");
-        return;
-      }
-      const userId = user.userid;
-      const itemId = parseInt(habitId, 10);
-
-      if (isNaN(itemId)) {
-        toast.error("無効な習慣IDです。");
-        return;
-      }
-
-      startTransition(async () => {
-        try {
-          const newLog = await addHabitLogEntry(
-            userId,
-            itemId,
-            formattedDate,
-            null
-          ); // ★ DAO関数を呼び出し
-
-          if (newLog) {
-            toast.success(`「${habitName}」を記録しました。`, {
-              description: `${format(today, "yyyy年M月d日", { locale: ja })}`,
-            });
-            await refreshHabitLogs(); // ログリストを再読み込みしてUIを更新
-          } else {
-            toast.error("記録の追加に失敗しました。");
-          }
-        } catch (error) {
-          console.error("Failed to insert habit log for today:", error);
-          toast.error("記録の追加中にエラーが発生しました。");
-        }
-      });
-    },
-    [user, refreshHabitLogs, startTransition] // 依存配列を更新
-  );
-
   // readHabitlogs が更新されたら、selHabitlogs も全件で初期化（「全て」選択時の状態）
   useEffect(() => {
     setSelHabitLogs(readHabitlogs);
@@ -244,24 +194,6 @@ export default function HabitDone() {
       setEditedDateInDialog(undefined);
       setEditedCommentInDialog("");
     }
-  };
-
-  // Group preset buttons using treeItems
-  const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
-    (acc, topLevelItem) => {
-      acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
-        topLevelItem.children || []
-      );
-      return acc;
-    },
-    {}
-  );
-
-  // Get parent name from treeItems for PresetButtonsSection card titles
-  const getParentNameFromTree = (parentId: string): string => {
-    const parentIdNum = parseInt(parentId, 10);
-    const foundItem = treeItems.find((item) => item.id === parentIdNum);
-    return foundItem?.name || "カテゴリ不明";
   };
 
   const handleSaveLogEdit = useCallback(async () => {
@@ -344,18 +276,23 @@ export default function HabitDone() {
     }
 
     const userId = user.userid;
-    const { item_id, done_at } = logToDelete;
+    const { id: logIdToDelete, item_id, done_at } = logToDelete; // ★ logIdToDelete を取得
     const habitName = getHabitItemNameById(item_id);
-    const formattedDate = format(parseISO(done_at), "yyyy-MM-dd");
 
     startTransition(async () => {
       try {
         // deleteHabitLog 関数を呼び出す (HabitTracker.tsx からインポートまたは同様の関数を定義)
         // この関数は userId, itemId, formattedDate を引数に取る想定
-        const success = await deleteDayHabitLogEntry(
+        // const success = await deleteDayHabitLogEntry(
+        //   userId,
+        //   item_id,
+        //   formattedDate
+        // ); // ★ DAO関数を呼び出し
+        // deleteHabitLogByIdEntry を使用して、ログIDで直接削除
+        const success = await deleteHabitLogByIdEntry(
+          // ★ こちらの関数を使用
           userId,
-          item_id,
-          formattedDate
+          logIdToDelete // ★ ログのIDを渡す
         ); // ★ DAO関数を呼び出し
 
         if (success) {
@@ -397,11 +334,6 @@ export default function HabitDone() {
 
   return (
     <div className="space-y-6">
-      <PresetButtonsSection
-        groupedButtons={groupedButtons}
-        onToggleHabit={toggleHabitForToday}
-        getParentName={getParentNameFromTree} // 更新されたゲッター関数を使用
-      />
       {/* DialogEdit を使用して編集ダイアログをレンダリング */}
       {editingLogData && ( // editingLogData がある場合のみ DialogEdit をレンダリング（タイトル設定のため）
         <DialogEdit

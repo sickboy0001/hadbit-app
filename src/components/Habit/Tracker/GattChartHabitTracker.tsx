@@ -1,6 +1,14 @@
+"use client";
 // components/molecules/GanttChart.tsx
-import React, { useEffect, useRef } from "react";
-import { format, isSameDay } from "date-fns";
+
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  startTransition,
+} from "react";
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
 import { DbHabitLog } from "@/app/actions/habit_logs"; // このパスをプロジェクトに合わせて調整してください
 import { TreeItem } from "@/types/habit/ui"; // このパスをプロジェクトに合わせて調整してください
@@ -12,40 +20,159 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ChevronDown, ChevronRightIcon } from "lucide-react"; // アイコンをインポート
+import { format, isSameDay, addDays, subDays } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext"; // useAuth をインポート
+// import { fetchSortedHabitLogs } from "../ClientApi/HabitLogClientApi"; // fetchSortedHabitLogs をインポート
+import { showCustomToast } from "@/components/organisms/CustomToast"; // showCustomToast をインポート
+import DateControls from "./DateControls";
+import { DAY_DIFF } from "@/constants/dateConstants"; // 定数をインポート
+import {
+  fetchHabitDataForUI,
+  fetchSortedHabitLogs,
+} from "../ClientApi/HabitLogClientApi"; // fetchHabitDataForUI を追加
+import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
+import { color_def } from "./dummy";
 
 interface GanttChartProps {
-  habitItems: HabitItem[];
-  habitItemInfos: HabitItemInfo[];
-  habitLogs: DbHabitLog[];
-  treeItems: TreeItem[];
-  startDate: Date;
-  endDate: Date;
+  // habitItems, habitItemInfos, treeItems は内部で取得するため削除
+  // startDate: Date;
+  // endDate: Date;
   onLogClick: (
     log: DbHabitLog,
     event: React.MouseEvent<HTMLButtonElement>
   ) => void;
   expandedCategories: Record<string, boolean>; // カテゴリの開閉状態
   onToggleCategory: (categoryId: string) => void; // カテゴリ開閉トグル関数
+  refreshTrigger?: number; // ★ 再読み込みトリガー用のprops
 }
 
 const GattChartHabitTracker: React.FC<GanttChartProps> = ({
-  habitItems,
-  habitItemInfos = [],
-  habitLogs,
-  treeItems,
-  startDate,
-  endDate,
+  // habitItems, // 削除
+  // habitItemInfos, // 削除
+  // habitLogs,
+  // treeItems,
+  // startDate,
+  // endDate,
   onLogClick,
   expandedCategories,
   onToggleCategory,
+  refreshTrigger,
 }) => {
+  const { user } = useAuth();
+  const userId = user?.userid ?? 0;
+
+  const [internalHabitItems, setInternalHabitItems] = useState<HabitItem[]>([]);
+  const [internalHabitItemInfos, setInternalHabitItemInfos] = useState<
+    HabitItemInfo[]
+  >([]);
+  const [internalTreeItems, setInternalTreeItems] = useState<TreeItem[]>([]);
+
+  const today = useMemo(() => new Date(), []);
+  const defaultEndDate = useMemo(() => new Date(), []);
+  const defaultStartDate = useMemo(() => addDays(today, -DAY_DIFF), [today]);
+  const [internalStartDate, setInternalStartDate] = useState(defaultStartDate);
+  const [internalEndDate, setInternalEndDate] = useState(defaultEndDate);
+  const [internalHabitLogs, setInternalHabitLogs] = useState<DbHabitLog[]>([]);
+
   const componentId = useRef(
     // デバッグ用にコンポーネントIDを生成
     `GattChartHabitTracker-${Math.random().toString(36).substr(2, 9)}`
   ).current;
   console.log(`[${componentId}] GattChartHabitTracker rendered`);
+  const refreshInternalHabitLogs = useCallback(async () => {
+    if (!userId || userId === 0) return;
 
-  const dates = generateDates(startDate, endDate);
+    const formattedStartDate = format(internalStartDate, "yyyy-MM-dd");
+    const formattedEndDate = format(internalEndDate, "yyyy-MM-dd");
+
+    startTransition(async () => {
+      try {
+        const sortedLogs = await fetchSortedHabitLogs(
+          userId,
+          formattedStartDate,
+          formattedEndDate
+        );
+        setInternalHabitLogs(sortedLogs);
+        console.log(
+          `[${componentId}] Fetched internal habit logs:`,
+          sortedLogs
+        );
+      } catch (error) {
+        showCustomToast({
+          message: "ガントチャートの記録読み込みに失敗しました。",
+          submessage: "データの取得中に問題が発生しました。",
+          type: "error",
+        });
+        console.error(
+          `[${componentId}] Failed to fetch internal habit logs:`,
+          error
+        );
+      }
+    });
+  }, [userId, internalStartDate, internalEndDate, componentId]);
+
+  const refreshInternalItems = useCallback(async () => {
+    if (!userId || userId === 0) return;
+    startTransition(async () => {
+      try {
+        const {
+          habitItems: fetchedHabitItems,
+          habitItemTreeRaw: fetchedHabitItemTreeRaw,
+        } = await fetchHabitDataForUI(userId);
+
+        setInternalHabitItems(fetchedHabitItems);
+        const nowTreeItems = buildTreeFromHabitAndParentReration(
+          fetchedHabitItems,
+          fetchedHabitItemTreeRaw
+        );
+        setInternalTreeItems(nowTreeItems);
+      } catch (error) {
+        showCustomToast({
+          message: "ガントチャートの項目読み込みに失敗しました。",
+          submessage: "データの取得中に問題が発生しました。",
+          type: "error",
+        });
+        console.error(
+          `[${componentId}] Failed to fetch internal items:`,
+          error
+        );
+      }
+    });
+  }, [userId, componentId]);
+
+  // internalHabitItems が変更されたら internalHabitItemInfos を生成
+  useEffect(() => {
+    if (internalHabitItems.length > 0 && color_def.length > 0) {
+      const newHabitItemInfos = internalHabitItems.map((habitItem) => {
+        const randomColorIndex = Math.floor(Math.random() * color_def.length);
+        return {
+          id: habitItem.id,
+          info_string: color_def[randomColorIndex],
+        };
+      });
+      setInternalHabitItemInfos(newHabitItemInfos);
+    }
+  }, [internalHabitItems]);
+
+  useEffect(() => {
+    if (userId) {
+      refreshInternalHabitLogs();
+      refreshInternalItems(); // 項目データも取得
+    }
+  }, [
+    userId,
+    internalStartDate,
+    internalEndDate,
+    refreshInternalHabitLogs,
+    refreshTrigger,
+    refreshInternalItems,
+  ]);
+
+  const dates = useMemo(
+    () => generateDates(internalStartDate, internalEndDate),
+    [internalStartDate, internalEndDate]
+  );
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // console.log("GattChartHabitTracker called", habitItemInfos);
   // treeItemsとhabitItemsに基づいて習慣の表示順序を決定する
@@ -65,7 +192,7 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     }
   }, [dates]); // dates が変更されたとき（表示期間が変わったとき）に再実行
   // まず、トップレベルのカテゴリを追加
-  treeItems.forEach((category) => {
+  internalTreeItems.forEach((category) => {
     orderedHabitDisplayItems.push({
       id: String(category.id),
       name: category.name,
@@ -76,7 +203,8 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     // habitItems に存在する child のみを追加する（念のため）
     category.children?.forEach((child) => {
       // habitItems に存在する child のみを追加する（念のため）
-      if (habitItems.some((h) => h.id === child.id)) {
+      // internalHabitItems に存在する child のみを追加する
+      if (internalHabitItems.some((h) => h.id === child.id)) {
         orderedHabitDisplayItems.push({
           id: String(child.id),
           name: child.name,
@@ -89,7 +217,7 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   });
 
   // orderedHabitDisplayItemsに存在する習慣のみをフィルタリング
-  const habitsToDisplay = habitItems.filter((habit) =>
+  const habitsToDisplay = internalHabitItems.filter((habit) =>
     orderedHabitDisplayItems.some(
       (displayItem) => displayItem.id === habit.id.toString()
     )
@@ -102,7 +230,7 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   ): DbHabitLog | undefined => {
     // const formattedDate = format(date, "yyyy-MM-dd"); // DbHabitLog の done_at 形式に合わせる
     // ログデータから該当するものを探す
-    const log = habitLogs.find(
+    const log = internalHabitLogs.find(
       (habitLog) =>
         habitLog.item_id === Number(habitId) &&
         isSameDay(new Date(habitLog.done_at), date)
@@ -135,13 +263,46 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     return logDetails;
   };
 
+  // DateControls handlers
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    setInternalStartDate(date);
+    setInternalEndDate(addDays(date, DAY_DIFF)); // Or maintain current duration
+  };
+
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    setInternalEndDate(date);
+    setInternalStartDate(subDays(date, DAY_DIFF)); // Or maintain current duration
+  };
+
+  const goToPreviousRange = () => {
+    const daysInRange = dates.length || DAY_DIFF + 1;
+    setInternalStartDate(subDays(internalStartDate, daysInRange));
+    setInternalEndDate(subDays(internalEndDate, daysInRange));
+  };
+
+  const goToNextRange = () => {
+    const daysInRange = dates.length || DAY_DIFF + 1;
+    setInternalStartDate(addDays(internalStartDate, daysInRange));
+    setInternalEndDate(addDays(internalEndDate, daysInRange));
+  };
+
   return (
     <TooltipProvider>
       {/* ref を追加してスクロールコンテナへの参照を取得 */}
       <div>
         <h2 className="text-xl font-semibold">■記録（ガントチャート）</h2>
       </div>
-      <div className="overflow-x-auto" ref={scrollContainerRef}>
+      <DateControls
+        startDate={internalStartDate}
+        endDate={internalEndDate}
+        onStartDateChange={handleStartDateChange}
+        onEndDateChange={handleEndDateChange}
+        onGoToPreviousRange={goToPreviousRange}
+        onGoToNextRange={goToNextRange}
+      />
+      <div className="overflow-x-auto mt-4" ref={scrollContainerRef}>
         <table className="mt-2 min-w-full divide-y divide-gray-200 border border-gray-300">
           <thead className="bg-gray-50">
             <tr>
@@ -274,7 +435,7 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
                         habit.id.toString(),
                         date
                       ); // 特定のログを取得
-                      const habitInfo = habitItemInfos.find(
+                      const habitInfo = internalHabitItemInfos.find(
                         (info) => info.id === habit.id
                       );
                       // console.log(habitItemInfos);

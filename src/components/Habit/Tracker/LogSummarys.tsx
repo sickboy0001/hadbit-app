@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+  startTransition,
+  useRef,
+} from "react";
 import { DbHabitLog } from "@/app/actions/habit_logs"; // このパスをプロジェクトに合わせて調整してください
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
 
@@ -15,13 +22,25 @@ import {
 } from "../ClientApi/HabitSettingService";
 import { TreeItem } from "@/types/habit/ui";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { showCustomToast } from "@/components/organisms/CustomToast";
+import DateControls from "./DateControls"; // DateControls をインポート
+import { format, addDays, subDays } from "date-fns";
+import { DAY_DIFF } from "@/constants/dateConstants"; // 定数をインポート
+import {
+  fetchHabitDataForUI,
+  fetchSortedHabitLogs,
+} from "../ClientApi/HabitLogClientApi";
+import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
+import { color_def } from "./dummy"; // color_def をインポート
+
 interface LogSummarysProps {
-  habitItems: HabitItem[];
-  habitLogs: DbHabitLog[];
-  treeItems: TreeItem[];
-  habitItemInfos: HabitItemInfo[];
-  startDate: Date;
-  endDate: Date;
+  // habitItems: HabitItem[];
+  // treeItems: TreeItem[];
+  // habitItemInfos: HabitItemInfo[];
+  // habitLogs: DbHabitLog[];
+  // startDate: Date;
+  // endDate: Date;
   onLogClick: (
     log: DbHabitLog,
     event: React.MouseEvent<HTMLButtonElement>
@@ -30,28 +49,136 @@ interface LogSummarysProps {
   setHabitLogSummarySettings: React.Dispatch<
     React.SetStateAction<HabitLogSummarySettings | null>
   >;
-  // updateSettingsInDb: (
-  //   // 親コンポーネントから渡されるDB更新関数
-  //   updatedSettings: HabitLogSummarySettings | null
-  // ) => Promise<void>;
+  refreshTrigger?: number; // ★ 再読み込みトリガー用のprops
 }
 
 const LogSummarys: React.FC<LogSummarysProps> = ({
-  habitItems,
-  habitLogs,
-  treeItems,
-  habitItemInfos = [],
-  startDate,
-  endDate,
+  // habitItems,
+  // treeItems,
+  // habitItemInfos = [],
+  // habitLogs,
+  // startDate,
+  // endDate,
   onLogClick,
   habitLogSummarySettings,
   setHabitLogSummarySettings,
+  refreshTrigger,
   // updateSettingsInDb, // Propsとして受け取る
 }) => {
+  const { user } = useAuth();
+  const userId = user?.userid ?? 0;
+
+  const today = useMemo(() => new Date(), []);
+  const defaultEndDate = useMemo(() => new Date(), []);
+  const defaultStartDate = useMemo(() => addDays(today, -DAY_DIFF), [today]);
+
+  const [internalHabitItems, setInternalHabitItems] = useState<HabitItem[]>([]);
+  const [internalHabitItemInfos, setInternalHabitItemInfos] = useState<
+    HabitItemInfo[]
+  >([]);
+  const [internalTreeItems, setInternalTreeItems] = useState<TreeItem[]>([]);
+
+  const [internalStartDate, setInternalStartDate] = useState(defaultStartDate);
+  const [internalEndDate, setInternalEndDate] = useState(defaultEndDate);
+  const [internalHabitLogs, setInternalHabitLogs] = useState<DbHabitLog[]>([]);
+
   const [isSelectHabitModalOpen, setIsSelectHabitModalOpen] = useState(false);
   const [selectingHabitForOrderId, setSelectingHabitForOrderId] = useState<
     string | null
   >(null);
+
+  const componentId = useRef(
+    `LogSummarys-${Math.random().toString(36).substr(2, 9)}`
+  ).current;
+
+  const refreshInternalHabitLogs = useCallback(async () => {
+    if (!userId || userId === 0) return;
+
+    const formattedStartDate = format(internalStartDate, "yyyy-MM-dd");
+    const formattedEndDate = format(internalEndDate, "yyyy-MM-dd");
+
+    startTransition(async () => {
+      try {
+        const sortedLogs = await fetchSortedHabitLogs(
+          userId,
+          formattedStartDate,
+          formattedEndDate
+        );
+        setInternalHabitLogs(sortedLogs);
+        console.log(
+          `[${componentId}] Fetched internal habit logs for LogSummarys:`,
+          sortedLogs
+        );
+      } catch (error) {
+        showCustomToast({
+          message: "サマリーの記録読み込みに失敗しました。",
+          submessage: "データの取得中に問題が発生しました。",
+          type: "error",
+        });
+        console.error(
+          `[${componentId}] Failed to fetch internal habit logs for LogSummarys:`,
+          error
+        );
+      }
+    });
+  }, [userId, internalStartDate, internalEndDate, componentId]);
+
+  const refreshInternalItems = useCallback(async () => {
+    if (!userId || userId === 0) return;
+    startTransition(async () => {
+      try {
+        const {
+          habitItems: fetchedHabitItems,
+          habitItemTreeRaw: fetchedHabitItemTreeRaw,
+        } = await fetchHabitDataForUI(userId);
+
+        setInternalHabitItems(fetchedHabitItems);
+        const nowTreeItems = buildTreeFromHabitAndParentReration(
+          fetchedHabitItems,
+          fetchedHabitItemTreeRaw
+        );
+        setInternalTreeItems(nowTreeItems);
+      } catch (error) {
+        showCustomToast({
+          message: "サマリーの項目読み込みに失敗しました。",
+          submessage: "データの取得中に問題が発生しました。",
+          type: "error",
+        });
+        console.error(
+          `[${componentId}] Failed to fetch internal items for LogSummarys:`,
+          error
+        );
+      }
+    });
+  }, [userId, componentId]);
+
+  useEffect(() => {
+    if (userId) {
+      refreshInternalHabitLogs();
+      refreshInternalItems();
+    }
+  }, [
+    userId,
+    internalStartDate,
+    internalEndDate,
+    refreshInternalHabitLogs,
+    refreshTrigger,
+    refreshInternalItems,
+  ]);
+
+  // internalHabitItems が変更されたら internalHabitItemInfos を生成
+  useEffect(() => {
+    if (internalHabitItems.length > 0 && color_def.length > 0) {
+      const newHabitItemInfos = internalHabitItems.map((habitItem) => {
+        const randomColorIndex = Math.floor(Math.random() * color_def.length);
+        return {
+          id: habitItem.id,
+          info_string: color_def[randomColorIndex],
+        };
+      });
+      setInternalHabitItemInfos(newHabitItemInfos);
+    }
+  }, [internalHabitItems]);
 
   const toggleSummary = (orderId: string) => {
     if (!habitLogSummarySettings) return;
@@ -73,7 +200,7 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
   };
 
   const toggleAddSummary = () => {
-    if (!habitLogSummarySettings && habitItems.length === 0) {
+    if (!habitLogSummarySettings && internalHabitItems.length === 0) {
       // 初期化もできない場合は何もしない（またはエラー表示）
       console.warn(
         "Cannot add summary: initial settings and habit items are not available."
@@ -81,7 +208,7 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
       return;
     }
     const newOrderId = String(crypto.randomUUID());
-    const allHabitItemIds = habitItems.map((item) => item.id);
+    const allHabitItemIds = internalHabitItems.map((item) => item.id);
     const newSettingsState = addNewSummaryToSettings(
       habitLogSummarySettings,
       newOrderId,
@@ -199,10 +326,32 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
   };
 
   const leafhabitItems = useMemo(() => {
-    console.log("leafhabitItems called ", treeItems);
-    return getLeafHabitItems(treeItems, habitItems);
-  }, [treeItems, habitItems]);
+    // console.log("leafhabitItems called ", treeItems);
+    return getLeafHabitItems(internalTreeItems, internalHabitItems); // 内部データを使用
+  }, [internalTreeItems, internalHabitItems]);
 
+  // DateControls handlers
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    setInternalStartDate(date);
+    setInternalEndDate(addDays(date, DAY_DIFF));
+  };
+
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    setInternalEndDate(date);
+    setInternalStartDate(subDays(date, DAY_DIFF));
+  };
+
+  const goToPreviousRange = () => {
+    setInternalStartDate(subDays(internalStartDate, DAY_DIFF + 1));
+    setInternalEndDate(subDays(internalEndDate, DAY_DIFF + 1));
+  };
+
+  const goToNextRange = () => {
+    setInternalStartDate(addDays(internalStartDate, DAY_DIFF + 1));
+    setInternalEndDate(addDays(internalEndDate, DAY_DIFF + 1));
+  };
   if (habitLogSummarySettings === null) {
     return <div>loading・・・</div>;
   }
@@ -216,6 +365,14 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
           ログサマリ追加
         </Button>
       </div>
+      <DateControls
+        startDate={internalStartDate}
+        endDate={internalEndDate}
+        onStartDateChange={handleStartDateChange}
+        onEndDateChange={handleEndDateChange}
+        onGoToPreviousRange={goToPreviousRange}
+        onGoToNextRange={goToNextRange}
+      />
       {habitLogSummarySettings.globalLogSummaryDisplayOrder.map(
         (order, index) => {
           const summarySetting = habitLogSummarySettings.logSummary[order];
@@ -224,11 +381,11 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
             <LogSummaryItem
               key={order}
               summarySetting={summarySetting}
-              habitLogs={habitLogs}
-              habitItems={habitItems}
-              habitItemInfos={habitItemInfos}
-              startDate={startDate}
-              endDate={endDate}
+              habitLogs={internalHabitLogs} // 内部のログを使用
+              habitItems={internalHabitItems} // 内部のアイテムを使用
+              habitItemInfos={internalHabitItemInfos} // 内部のアイテム情報を使用
+              startDate={internalStartDate} // 内部の開始日を使用
+              endDate={internalEndDate} // 内部の終了日を使用
               onLogClick={onLogClick}
               order={order}
               index={index}
