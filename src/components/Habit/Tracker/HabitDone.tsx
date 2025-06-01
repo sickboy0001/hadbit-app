@@ -36,6 +36,8 @@ import {
 import { DAY_DEF_HABIT_DONE } from "@/constants/dateConstants"; // 定数をインポート
 import DateControls from "./DateControls";
 
+// const START_DATE_SHIFT_DAYS = 3; // ★ 開始日を今日から何日後にするか
+
 export default function HabitDone() {
   const [, startTransition] = useTransition(); // ★ トランジションフック
   const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
@@ -48,15 +50,15 @@ export default function HabitDone() {
   const [logToDelete, setLogToDelete] = useState<DbHabitLog | null>(null);
   const [activeHeatMap, setActiveHeatMap] = useState<TypeHeatMapData[]>([]);
 
+  const defaultEndDate = useMemo(() => {
+    return startOfDay(new Date()); // ★ デフォルトの終了日は常に「今日の0時」
+  }, []);
+
   // ★ defaultStartDate と defaultEndDate を useMemo でメモ化
   const defaultStartDate = useMemo(() => {
-    const today = new Date();
-    return addDays(today, -DAY_DEF_HABIT_DONE);
-  }, []); // 空の依存配列で、初回レンダリング時のみ計算
-
-  const defaultEndDate = useMemo(() => {
-    return new Date();
-  }, []); // 空の依存配列で、初回レンダリング時のみ計算
+    // defaultEndDate から DAY_DEF_HABIT_DONE - 1 日前を計算
+    return subDays(defaultEndDate, DAY_DEF_HABIT_DONE - 1);
+  }, [defaultEndDate]); // defaultEndDate に依存するように変更
 
   const [internalStartDate, setInternalStartDate] = useState(defaultStartDate);
   const [internalEndDate, setInternalEndDate] = useState(defaultEndDate);
@@ -97,31 +99,33 @@ export default function HabitDone() {
   // DateControls handlers
   const handleStartDateChange = (date: Date | undefined) => {
     if (!date) return;
-    setInternalStartDate(date);
-    setInternalEndDate(addDays(date, DAY_DEF_HABIT_DONE));
+    const newStartDate = startOfDay(date);
+    setInternalStartDate(newStartDate);
+    setInternalEndDate(addDays(newStartDate, DAY_DEF_HABIT_DONE - 1)); // 期間を DAY_DEF_HABIT_DONE 日間に維持
   };
 
   const handleEndDateChange = (date: Date | undefined) => {
     if (!date) return;
-    setInternalEndDate(date);
-    setInternalStartDate(subDays(date, DAY_DEF_HABIT_DONE));
+    const newEndDate = startOfDay(date);
+    setInternalEndDate(newEndDate);
+    setInternalStartDate(subDays(newEndDate, DAY_DEF_HABIT_DONE - 1)); // 期間を DAY_DEF_HABIT_DONE 日間に維持
   };
 
   const goToPreviousRange = () => {
     setInternalStartDate(
-      subDays(internalStartDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+      subDays(internalStartDate, Number(DAY_DEF_HABIT_DONE / 2))
     );
     setInternalEndDate(
-      subDays(internalEndDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+      subDays(internalEndDate, Number(DAY_DEF_HABIT_DONE / 2))
     );
   };
 
   const goToNextRange = () => {
     setInternalStartDate(
-      addDays(internalStartDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+      addDays(internalStartDate, Number(DAY_DEF_HABIT_DONE / 2))
     );
     setInternalEndDate(
-      addDays(internalEndDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+      addDays(internalEndDate, Number(DAY_DEF_HABIT_DONE / 2))
     );
   };
 
@@ -364,8 +368,8 @@ export default function HabitDone() {
   }
 
   //ActiveHeatMap
-  const to_at = new Date(defaultEndDate);
-  const from_at = addDays(to_at, -365);
+  // const to_at = new Date(defaultEndDate);
+  // const from_at = addDays(to_at, -365);
 
   return (
     <div className="space-y-6">
@@ -404,8 +408,8 @@ export default function HabitDone() {
           />
           <HeatMapTableHabitLog
             activeHeatMap={activeHeatMap}
-            fromAtString={from_at.toLocaleDateString()} // toLocaleDateString() は環境依存の可能性あり
-            toAtString={to_at.toLocaleDateString()} // format(date, "yyyy-MM-dd") の方が堅牢
+            fromAtString={format(internalStartDate, "yyyy-MM-dd")}
+            toAtString={format(addDays(internalEndDate, 1), "yyyy-MM-dd")} // endDateを1日進めて、今日の日付が含まれるようにする
             selHabitlogs={selHabitlogs}
             getHabitItemNameById={getHabitItemNameById}
             handleOpenLogEditDialog={handleOpenLogEditDialog} // 関数名を props 名に合わせる
