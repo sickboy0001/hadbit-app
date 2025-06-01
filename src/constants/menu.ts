@@ -20,7 +20,7 @@ export type NavItem = NavLinkItem | NavDropdownItem;
 
 // メニューデータ
 export const headerNavItems: NavItem[] = [
-  { id: "Done", type: "link", label: "done", href: "/habit/done" },
+  // { id: "Done", type: "link", label: "done", href: "/habit/done" },
   { id: "tracker", type: "link", label: "tracker", href: "/habit/tracker" },
   {
     id: "menu",
@@ -29,9 +29,9 @@ export const headerNavItems: NavItem[] = [
     items: [
       { id: "habit", label: "habit", href: "/habit/manager" },
       { id: "import", label: "import", href: "/habit/logImport" },
-      { id: "docs", href: "/docs", label: "ドキュメント" },
-      { id: "settings", href: "/settings", label: "設定" },
-      { id: "profile", href: "/profile", label: "プロフィール" },
+      // { id: "docs", href: "/docs", label: "ドキュメント" },
+      // { id: "settings", href: "/settings", label: "設定" },
+      // { id: "profile", href: "/profile", label: "プロフィール" },
     ],
   },
 ];

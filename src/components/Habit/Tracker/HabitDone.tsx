@@ -8,7 +8,7 @@ import {
   useTransition,
 } from "react";
 import DialogEdit from "@/components/molecules/DialogEdit"; // DialogEdit をインポート
-import { format, addDays, startOfDay } from "date-fns";
+import { format, addDays, startOfDay, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
 
@@ -34,6 +34,7 @@ import {
   updateHabitLogEntry,
 } from "../ClientApi/HabitLogClientApi";
 import { DAY_DEF_HABIT_DONE } from "@/constants/dateConstants"; // 定数をインポート
+import DateControls from "./DateControls";
 
 export default function HabitDone() {
   const [, startTransition] = useTransition(); // ★ トランジションフック
@@ -56,6 +57,9 @@ export default function HabitDone() {
   const defaultEndDate = useMemo(() => {
     return new Date();
   }, []); // 空の依存配列で、初回レンダリング時のみ計算
+
+  const [internalStartDate, setInternalStartDate] = useState(defaultStartDate);
+  const [internalEndDate, setInternalEndDate] = useState(defaultEndDate);
 
   // --- 編集ダイアログ関連の状態 ---
   const [isLogEditDialogOpen, setIsLogEditDialogOpen] = useState(false);
@@ -90,13 +94,44 @@ export default function HabitDone() {
     });
   }, [user, startTransition]); // user と startTransition に依存
 
+  // DateControls handlers
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    setInternalStartDate(date);
+    setInternalEndDate(addDays(date, DAY_DEF_HABIT_DONE));
+  };
+
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (!date) return;
+    setInternalEndDate(date);
+    setInternalStartDate(subDays(date, DAY_DEF_HABIT_DONE));
+  };
+
+  const goToPreviousRange = () => {
+    setInternalStartDate(
+      subDays(internalStartDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+    );
+    setInternalEndDate(
+      subDays(internalEndDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+    );
+  };
+
+  const goToNextRange = () => {
+    setInternalStartDate(
+      addDays(internalStartDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+    );
+    setInternalEndDate(
+      addDays(internalEndDate, Number(DAY_DEF_HABIT_DONE / 2) + 1)
+    );
+  };
+
   const refreshHabitLogs = useCallback(async () => {
     if (!user?.userid) return; // ユーザーIDがない場合は何もしない
     if (user === undefined) return; // ユーザーIDがない場合は何もしない
     const userId = user.userid;
     // startDate と endDate を YYYY-MM-DD 形式の文字列に変換
-    const formattedStartDate = format(defaultStartDate, "yyyy-MM-dd");
-    const formattedEndDate = format(defaultEndDate, "yyyy-MM-dd");
+    const formattedStartDate = format(internalStartDate, "yyyy-MM-dd");
+    const formattedEndDate = format(internalEndDate, "yyyy-MM-dd");
 
     startTransition(async () => {
       try {
@@ -112,7 +147,7 @@ export default function HabitDone() {
         console.error("Failed to fetch habit logs:", error);
       }
     });
-  }, [user, startTransition, defaultStartDate, defaultEndDate]); // ★ defaultStartDate と defaultEndDate を追加
+  }, [user, startTransition, internalStartDate, internalEndDate]); // ★ defaultStartDate と defaultEndDate を追加
 
   useEffect(() => {
     if (user?.userid) {
@@ -124,7 +159,7 @@ export default function HabitDone() {
     if (user?.userid) {
       refreshHabitLogs();
     }
-  }, [user?.userid, defaultStartDate, defaultEndDate, refreshHabitLogs]); // ★ user?.userid を追加
+  }, [user?.userid, internalStartDate, internalEndDate, refreshHabitLogs]); // ★ user?.userid を追加
 
   // item_id (number) から習慣名 (string) を取得するヘルパー関数
   const getHabitItemNameById = useCallback(
@@ -359,6 +394,14 @@ export default function HabitDone() {
           onHabitSelect={toggleHabitSelection}
         />
         <div>
+          <DateControls
+            startDate={internalStartDate}
+            endDate={internalEndDate}
+            onStartDateChange={handleStartDateChange}
+            onEndDateChange={handleEndDateChange}
+            onGoToPreviousRange={goToPreviousRange}
+            onGoToNextRange={goToNextRange}
+          />
           <HeatMapTableHabitLog
             activeHeatMap={activeHeatMap}
             fromAtString={from_at.toLocaleDateString()} // toLocaleDateString() は環境依存の可能性あり
