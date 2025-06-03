@@ -31,7 +31,8 @@ import {
   fetchSortedHabitLogs,
 } from "../ClientApi/HabitLogClientApi"; // fetchHabitDataForUI を追加
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
-import { color_def } from "./dummy";
+import { color_def } from "@/constants/habitStyle";
+import { getColorHabitItemItemStyle } from "@/lib/colorUtils";
 
 interface GanttChartProps {
   // habitItems, habitItemInfos, treeItems は内部で取得するため削除
@@ -143,11 +144,17 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   // internalHabitItems が変更されたら internalHabitItemInfos を生成
   useEffect(() => {
     if (internalHabitItems.length > 0 && color_def.length > 0) {
-      const newHabitItemInfos = internalHabitItems.map((habitItem) => {
-        const randomColorIndex = Math.floor(Math.random() * color_def.length);
+      const newHabitItemInfos = internalHabitItems.map((item) => {
+        const colorFromStringOrObject = getColorHabitItemItemStyle(
+          item.item_style
+        );
+        const finalColor =
+          colorFromStringOrObject ||
+          color_def[Math.floor(Math.random() * color_def.length)];
+
         return {
-          id: habitItem.id,
-          info_string: color_def[randomColorIndex],
+          id: item.id,
+          info_string: finalColor,
         };
       });
       setInternalHabitItemInfos(newHabitItemInfos);

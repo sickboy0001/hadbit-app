@@ -16,7 +16,7 @@ export const createNewLogSummarySettingItem = (
     name: "新しいサマリ",
     description: "新しいサマリの説明です。",
     filtersHabitItemIds: allHabitItemIds, // 初期状態ではフィルターなし
-    type: "1day", // デフォルトタイプ
+    type: "days", // デフォルトタイプ
     isExpanded: true, // 最初は展開しておく
   };
 };

@@ -84,6 +84,7 @@ const TreeHabitSelection: React.FC<HabitSelectionTreeProps> = ({
     name: "全て",
     children: [], // 「全て」は子を持たない想定
     expanded: false, // 初期状態は任意
+    item_style: {},
   };
   return (
     <Card>

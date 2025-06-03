@@ -10,6 +10,7 @@ export interface HabitItem {
   delete_flag?: boolean | null;
   updated_at: string; // ISO 8601 形式の文字列
   created_at: string; // ISO 8601 形式の文字列
+  item_style: object | null; //jsonobject
 }
 
 export interface HabitItemInfo {
@@ -29,3 +30,7 @@ export type HabitItemTree = {
   parent_id: number | null; // habit_item_tree.parent_id
   order_no: number | null; // habit_item_tree.order_no
 };
+
+export interface HabititemItemStyle {
+  color: string;
+}

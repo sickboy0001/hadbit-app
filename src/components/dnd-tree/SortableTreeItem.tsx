@@ -7,13 +7,20 @@ import {
   GripVertical,
   Trash2,
   Pencil,
+  Palette,
 } from "lucide-react";
 import { FlattenedItem } from "@/types/habit/ui";
+import {
+  getBackgroundColorWithOpacity,
+  getBorderColorWithOpacity,
+  getColorHabitItemItemStyle,
+} from "@/lib/colorUtils";
 
 type SortableTreeItemProps = {
   item: FlattenedItem;
   depth: number;
   onEditItem?: (id: number) => void;
+  onEditStyleItem?: (id: number) => void;
   onRemoveItem?: (id: number) => void;
   onExpand?: () => void;
   expanded?: boolean;
@@ -33,6 +40,7 @@ export const SortableTreeItem = ({
   onExpand,
   expanded,
   onEditItem,
+  onEditStyleItem,
   indentationWidth,
   clone,
   childrenCount,
@@ -55,6 +63,8 @@ export const SortableTreeItem = ({
     transform: CSS.Translate.toString(transform),
     transition,
   };
+
+  const basecolor = getColorHabitItemItemStyle(item.item_style);
 
   return (
     <li
@@ -100,16 +110,38 @@ export const SortableTreeItem = ({
               )}
             </button>
           )}
-          <span className="text-sm text-gray-800">{item.name}</span>
+          {/* <span className="text-sm text-gray-800">{item.name}</span> */}
+          <span
+            className="text-sm border rounded-lg p-2 "
+            style={{
+              borderColor: getBorderColorWithOpacity(basecolor ?? ""),
+              backgroundColor: getBackgroundColorWithOpacity(basecolor ?? ""),
+            }}
+          >
+            {item.name}
+          </span>
           {/* 編集ボタン (名前の横) */}
-          {!clone && onEditItem && (
-            <button
-              onClick={() => onEditItem(item.id)}
-              className="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors ml-2" // 名前との間にマージンを追加
-              aria-label="編集"
-            >
-              <Pencil size={16} />
-            </button>
+          {!clone && (
+            <>
+              {onEditItem && (
+                <button
+                  onClick={() => onEditItem(item.id)}
+                  className="text-gray-600 hover:text-gray-900 p-1 rounded transition-colors ml-2" // 名前との間にマージンを追加、色を変更
+                  aria-label="編集"
+                >
+                  <Pencil size={16} />
+                </button>
+              )}
+              {onEditStyleItem && (
+                <button
+                  onClick={() => onEditStyleItem(item.id)}
+                  className="text-gray-600 hover:text-gray-900 p-1 rounded transition-colors ml-2" // 名前との間にマージンを追加、色を変更
+                  // aria-label="スタイル"
+                >
+                  <Palette size={16} />
+                </button>
+              )}
+            </>
           )}
           {/* 削除ボタン (右端) */}
           {!clone && onRemoveItem && (

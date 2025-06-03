@@ -45,6 +45,8 @@ import {
 } from "../ClientApi/HabitSettingClientApi";
 import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 import HabitDone from "./HabitDone";
+import ColorDisplayTest from "./ColorDisplayTest";
+import { color_def } from "@/constants/habitStyle";
 
 // const DAY_DIFF = 20;
 
@@ -721,12 +723,12 @@ const HabitTracker = () => {
             </div>
             {/* ... (既存のコンポーネントの続き) ... */}
           </div>
-          {/* <div className="mt-8 p-4 border-t">
+          <div className="mt-8 p-4 border-t">
             <h2 className="text-xl font-bold mb-4">
               カラーパレット テキスト表示テスト
             </h2>
             <ColorDisplayTest title="テスト" colors={color_def} />
-          </div> */}
+          </div>
         </>
       )}
     </div>

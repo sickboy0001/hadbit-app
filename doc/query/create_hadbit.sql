@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS public.habit_items (
     delete_flag BOOLEAN DEFAULT FALSE, -- デフォルト値を追加 (論理削除用)
     updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
-    item_style TEXT -- マークや色などの表示スタイルをテキストで格納 (例: "◆", "red", "mark:◆;color:red")
+--    item_style TEXT -- マークや色などの表示スタイルをテキストで格納 (例: "◆", "red", "mark:◆;color:red")
+    item_style JSONB -- マークや色などの表示スタイルをJSONBで格納 (例: {"mark": "◆", "color": "red"})
 );
 -- ユーザーIDでの検索を高速化するためのインデックス
 CREATE INDEX IF NOT EXISTS idx_habit_items_user_id ON public.habit_items (user_id);
@@ -52,6 +53,61 @@ CREATE TABLE IF NOT EXISTS public.habit_logs (
 CREATE INDEX IF NOT EXISTS idx_habit_logs_user_id ON public.habit_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_habit_logs_item_id ON public.habit_logs (item_id);
 
+-- スキーマの使用権限
+grant usage on schema "public" to anon;
+grant usage on schema "public" to authenticated;
+
+-- テーブルへのアクセス権限 (SupabaseのRLSを使う場合はより詳細な設定が必要)
+GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authenticated;
+GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
+
+-- シーケンス (serialによる自動採番) の使用権限
+-- GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO anon;
+-- GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.habit_items_id_seq TO anon;
+GRANT USAGE ON SEQUENCE public.habit_items_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.habit_logs_id_seq TO anon;
+GRANT USAGE ON SEQUENCE public.habit_logs_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.habit_item_fields_id_seq TO anon;
+GRANT USAGE ON SEQUENCE public.habit_item_fields_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO anon;
+GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO authenticated;
+
+
+/*
+-- template
+
+-- 習慣項目実行時に記録された入力値
+CREATE TABLE IF NOT EXISTS public.habit_log_fields (
+    id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
+    log_id INTEGER NOT NULL,
+    item_field_id INTEGER NOT NULL,
+    name TEXT,
+    before_text TEXT,
+    value TEXT,
+    type TEXT,
+    after_text TEXT,
+    update_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
+    create_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP -- 型とデフォルト値を変更
+);
+-- 実行記録IDと入力項目定義IDでの検索を高速化するためのインデックス
+CREATE INDEX IF NOT EXISTS idx_habit_log_fields_done_id ON public.habit_log_fields (log_id);
+CREATE INDEX IF NOT EXISTS idx_habit_log_fields_item_input_id ON public.habit_log_fields (item_field_id );
+
+-- スキーマの使用権限
+grant usage on schema "public" to anon;
+grant usage on schema "public" to authenticated;
+
+-- テーブルへのアクセス権限 (SupabaseのRLSを使う場合はより詳細な設定が必要)
+GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authenticated;
+GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
+
+-- シーケンス (serialによる自動採番) の使用権限
+GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO anon;
+GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO authenticated;
+*/
+
+/*
 -- 習慣項目実行時に記録する入力項目 (例: 体重、時間など) の定義
 CREATE TABLE IF NOT EXISTS public.habit_item_fields  (
     id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
@@ -91,77 +147,4 @@ CREATE TABLE IF NOT EXISTS public.habit_log_fields (
 CREATE INDEX IF NOT EXISTS idx_habit_log_fields_done_id ON public.habit_log_fields (log_id);
 CREATE INDEX IF NOT EXISTS idx_habit_log_fields_item_input_id ON public.habit_log_fields (item_field_id );
 
-
--- スキーマの使用権限
-grant usage on schema "public" to anon;
-grant usage on schema "public" to authenticated;
-
--- テーブルへのアクセス権限 (SupabaseのRLSを使う場合はより詳細な設定が必要)
-GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authenticated;
-GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
-
--- シーケンス (serialによる自動採番) の使用権限
--- GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO anon;
--- GRANT USAGE ON SEQUENCE public.habit_item_tree_id_seq TO authenticated;
-GRANT USAGE ON SEQUENCE public.habit_items_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.habit_items_id_seq TO authenticated;
-GRANT USAGE ON SEQUENCE public.habit_logs_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.habit_logs_id_seq TO authenticated;
-GRANT USAGE ON SEQUENCE public.habit_item_fields_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.habit_item_fields_id_seq TO authenticated;
-GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO authenticated;
-
-
-CREATE TABLE IF NOT EXISTS public.user_setting_configs (
-    id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
-    user_id INTEGER NOT NULL, -- user_id
-    log_summary_settings jsonb NOT NULL,
-    type TEXT NOT NULL, -- habit_log_summary_table
-    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
-    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP -- 型とデフォルト値を変更
-);
-
--- スキーマの使用権限
-grant usage on schema "public" to anon;
-grant usage on schema "public" to authenticated;
-
--- テーブルへのアクセス権限 (SupabaseのRLSを使う場合はより詳細な設定が必要)
-GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authenticated;
-GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
-
-GRANT USAGE ON SEQUENCE public.user_setting_configs_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.user_setting_configs_id_seq TO authenticated;
-
-/*
--- template
-
--- 習慣項目実行時に記録された入力値
-CREATE TABLE IF NOT EXISTS public.habit_log_fields (
-    id serial PRIMARY KEY, -- PostgreSQLの自動インクリメント型に変更
-    log_id INTEGER NOT NULL,
-    item_field_id INTEGER NOT NULL,
-    name TEXT,
-    before_text TEXT,
-    value TEXT,
-    type TEXT,
-    after_text TEXT,
-    update_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 型とデフォルト値を変更
-    create_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP -- 型とデフォルト値を変更
-);
--- 実行記録IDと入力項目定義IDでの検索を高速化するためのインデックス
-CREATE INDEX IF NOT EXISTS idx_habit_log_fields_done_id ON public.habit_log_fields (log_id);
-CREATE INDEX IF NOT EXISTS idx_habit_log_fields_item_input_id ON public.habit_log_fields (item_field_id );
-
--- スキーマの使用権限
-grant usage on schema "public" to anon;
-grant usage on schema "public" to authenticated;
-
--- テーブルへのアクセス権限 (SupabaseのRLSを使う場合はより詳細な設定が必要)
-GRANT SELECT, INSERT, UPDATE , DELETE  ON ALL TABLES IN SCHEMA "public" TO authenticated;
-GRANT SELECT, INSERT, UPDATE , DELETE ON ALL TABLES IN SCHEMA "public" TO anon;
-
--- シーケンス (serialによる自動採番) の使用権限
-GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO anon;
-GRANT USAGE ON SEQUENCE public.habit_log_fields_id_seq TO authenticated;
 */

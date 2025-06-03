@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 export type TreeItem = {
   id: number;
   name: string;
+  item_style: object; //jsonb
   children: TreeItem[];
   expanded: boolean;
 };

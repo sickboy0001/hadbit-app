@@ -29,6 +29,7 @@ export function buildTreeWithHabitFromFlatList(
     const treeNode: TreeItem = {
       id: item.id, // ID を文字列に変換
       name: item.name,
+      item_style: item.item_style ? item.item_style : [],
       children: [],
       expanded: false, // 必要に応じて初期値を設定
     };
@@ -114,6 +115,7 @@ export function buildTreeFromHabitAndParentReration(
         return {
           id: habitItem.id, // TreeItem の id
           name: habitItem.short_name,
+          item_style: habitItem.item_style,
           children: buildNodeRecursive(habitItem.id), // 再帰的に子ノードを構築
           expanded: false, // デフォルトは折りたたみ
           // 必要であれば habitItem 自体を含めることも検討できます:

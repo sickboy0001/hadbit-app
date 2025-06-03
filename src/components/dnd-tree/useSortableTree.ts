@@ -36,10 +36,7 @@ export const useSortableTree = ({
   indentationWidth = DEFAULT_INDENTATION_WIDTH,
   indicator = false,
   onItemsChange,
-}: // onRemoveItem,
-UseSortableTreeOptions) => {
-  // console.log("[useSortableTree] defaultItems prop changed:", defaultItems);
-
+}: UseSortableTreeOptions) => {
   useEffect(() => {
     setItems(defaultItems);
   }, [defaultItems]);

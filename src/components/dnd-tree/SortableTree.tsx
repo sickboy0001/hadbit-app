@@ -64,6 +64,7 @@ type SortableTreeProps = {
   onItemsChange: (items: TreeItem[]) => void;
   onRemoveItem?: (id: number) => void;
   onEditItem?: (id: number) => void;
+  onEditStyleItem?: (id: number) => void;
 };
 
 /**
@@ -73,7 +74,13 @@ type SortableTreeProps = {
  * https://zenn.dev/uraaaa24/articles/e36a7bfd52f0ca
  */
 const SortableTree = (props: SortableTreeProps) => {
-  const { defaultItems, onItemsChange, onRemoveItem, onEditItem } = props;
+  const {
+    defaultItems,
+    onItemsChange,
+    onRemoveItem,
+    onEditItem,
+    onEditStyleItem,
+  } = props;
   // useSortableTree カスタムフックを呼び出し、ツリーの状態管理と操作に必要な値を取得する。
   // defaultItems を初期データとして渡す。
   const {
@@ -84,6 +91,12 @@ const SortableTree = (props: SortableTreeProps) => {
     getDndContextProps, // DndContext に渡すプロパティを取得する関数
     getSortableTreeItemProps, // 各 SortableTreeItem に渡すプロパティを取得する関数
   } = useSortableTree({ defaultItems, onItemsChange });
+  // console.log("SortableTree mounted", defaultItems);
+  console.log("[SortableTree] defaultItems:", defaultItems);
+  console.log(
+    "[SortableTree] flattenedItems from useSortableTree:",
+    flattenedItems
+  );
 
   const sensors = useSensors(useSensor(PointerSensor));
   const [isMounted, setIsMounted] = useState(false); // マウント状態を管理するstate
@@ -100,6 +113,7 @@ const SortableTree = (props: SortableTreeProps) => {
           <SortableTreeItem
             key={item.id}
             onEditItem={onEditItem}
+            onEditStyleItem={onEditStyleItem}
             onRemoveItem={onRemoveItem}
             {...getSortableTreeItemProps(item, INDENTION_WIDTH)}
           />

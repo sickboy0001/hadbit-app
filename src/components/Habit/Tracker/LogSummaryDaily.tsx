@@ -11,6 +11,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"; // shadcn/ui の Tooltip を使用
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import {
+  getBackgroundColorWithOpacity,
+  getBorderColorWithOpacity,
+} from "@/lib/colorUtils";
+import { Skeleton } from "@/components/ui/skeleton";
 interface LogSummaryDailyProps {
   habitItems: HabitItem[];
   habitLogs: DbHabitLog[];
@@ -21,7 +26,6 @@ interface LogSummaryDailyProps {
     log: DbHabitLog,
     event: React.MouseEvent<HTMLButtonElement>
   ) => void;
-  displayType: string;
 }
 
 // Helper function to chunk array into smaller arrays of a specified size
@@ -54,19 +58,14 @@ const DailyLogItem: React.FC<DailyLogItemProps> = React.memo(
     // console.log(`Rendering DailyLogItem: ${habitName} - ${log.id}`); // For debugging re-renders
     return (
       <TooltipPrimitive.Root>
-        {" "}
         {/* Use Radix UI Root directly */}
         <TooltipTrigger asChild>
           <button
             type="button"
             className="w-full text-left p-1 rounded-md hover:bg-gray-200 text-xs flex justify-between items-center border"
             style={{
-              borderColor: markerColorClass
-                ? markerColorClass + "80"
-                : undefined,
-              backgroundColor: markerColorClass
-                ? markerColorClass + "10"
-                : undefined,
+              borderColor: getBorderColorWithOpacity(markerColorClass),
+              backgroundColor: getBackgroundColorWithOpacity(markerColorClass),
             }}
             onClick={(event) => onLogClick(log, event)}
           >
@@ -114,13 +113,11 @@ const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
     startDate,
     endDate,
     onLogClick,
-    displayType,
   } = props;
 
   const componentId = useRef(
     `LogSummaryDaily-${Math.random().toString(36).substr(2, 9)}`
   ).current;
-  console.log("LogSummaryDaily rendered", displayType);
 
   const prevPropsRef = useRef<LogSummaryDailyProps | null>(null);
   useEffect(() => {
@@ -141,12 +138,6 @@ const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
     }
     prevPropsRef.current = props; // props は LogSummaryDailyInternal が受け取る props オブジェクト
   }); // 依存配列なしで毎レンダリング時に実行
-
-  // const renderOverallStart = performance.now();
-  // const [thisHabitLogs, setThisHabitLogs] = useState<DbHabitLog[]>([]);
-  // useEffect(() => {
-  //   setThisHabitLogs(habitLogs);
-  // }, [habitLogs]);
 
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const dates = useMemo(() => {
@@ -294,33 +285,38 @@ const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
 
   // 画面サイズに応じてグループ化する日数を決定
   const groupedDates = useMemo(() => {
-    // const t0 = performance.now();
     const groupSize = isSmallScreen ? 3 : 7;
     const result = chunk(dates, groupSize);
-    // const t1 = performance.now();
-    // console.log(
-    //   `[${componentId}] Calculated groupedDates (size: ${groupSize}) in ${
-    //     t1 - t0
-    //   } ms.`
-    // );
+
     return result;
   }, [dates, isSmallScreen]); // chunkも依存配列に追加
 
-  // useEffect(() => {
-  //   const renderOverallEnd = performance.now();
-  //   // console.log(
-  //   //   `[${componentId}] Full render logic (excluding JSX return) took: ${
-  //   //     renderOverallEnd - renderOverallStart
-  //   //   } ms. DisplayType: ${displayType}`
-  //   // );
-  // }, [componentId, renderOverallStart, displayType]); // 毎レンダリング後に実行
-
+  // データが空の場合のスケルトン表示
+  if (habitItems.length === 0 || habitLogs.length === 0) {
+    return (
+      <div className="p-4">
+        {habitItems.length === 0 && (
+          <p className="text-sm text-muted-foreground mb-2">
+            表示する習慣項目がありません。
+          </p>
+        )}
+        {habitLogs.length === 0 && habitItems.length > 0 && (
+          <p className="text-sm text-muted-foreground mb-2">
+            表示するログが期間内にありません。
+          </p>
+        )}
+        <Skeleton className="h-10 w-full mb-2" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
   return (
     <TooltipProvider>
       {/* Wrap with a single TooltipProvider */}
       <div className="overflow-x-auto">
         <div className="flex flex-col">
           {/* Container for weekly rows */}
+
           {groupedDates.map((dayGroup, groupIndex) => {
             // console.log(
             //   `[${componentId}] Rendering dayGroup index: ${groupIndex}, number of days in group: ${dayGroup.length}`
@@ -341,7 +337,17 @@ const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
                       className="flex-shrink-0 w-1/3 sm:w-1/7 border border-gray-200 p-1" // Each day column
                     >
                       <div className="text-center font-semibold text-gray-700 mb-1">
-                        <span>{format(date, "M/d(EEE)", { locale: ja })}</span>
+                        <span
+                          className={
+                            date.getDay() === 0
+                              ? "text-red-600"
+                              : date.getDay() === 6
+                              ? "text-blue-600"
+                              : ""
+                          }
+                        >
+                          {format(date, "M/d(EEE)", { locale: ja })}
+                        </span>
                       </div>
                       <div className="space-y-1">
                         {logsForThisDate.length > 0 ? (

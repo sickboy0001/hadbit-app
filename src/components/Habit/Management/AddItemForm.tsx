@@ -34,7 +34,8 @@ const AddItemForm: React.FC<AddItemFormProps> = ({
     </div>
   );
 };
-{/* <Input
+{
+  /* <Input
 type="text"
 placeholder="新しい習慣名を入力..."
 value={newItemName}
@@ -51,5 +52,6 @@ onClick={handleAddNewItem}
 disabled={isPending || !newItemName.trim()}
 >
 {isPending ? "追加中..." : "追加"}
-</Button> */}
+</Button> */
+}
 export default AddItemForm;

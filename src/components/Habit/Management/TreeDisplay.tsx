@@ -7,6 +7,7 @@ interface TreeDisplayProps {
   onItemsChange: (newItems: TreeItem[]) => void;
   onRemoveItem: (id: number) => void;
   onEditItem: (id: number) => void;
+  onEditStyleItem?: (id: number) => void;
 }
 
 const TreeDisplay: React.FC<TreeDisplayProps> = ({
@@ -14,6 +15,7 @@ const TreeDisplay: React.FC<TreeDisplayProps> = ({
   onItemsChange,
   onRemoveItem,
   onEditItem,
+  onEditStyleItem,
 }) => {
   return (
     <>
@@ -22,6 +24,7 @@ const TreeDisplay: React.FC<TreeDisplayProps> = ({
         onItemsChange={onItemsChange}
         onRemoveItem={onRemoveItem}
         onEditItem={onEditItem}
+        onEditStyleItem={onEditStyleItem}
       />
       {/* デバッグ用にフォーマットされた状態を表示 */}
       {/* <pre className="mt-4 p-2 bg-gray-100 rounded text-xs overflow-auto whitespace-pre-wrap">

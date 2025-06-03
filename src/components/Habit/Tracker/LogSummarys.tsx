@@ -32,7 +32,8 @@ import {
   fetchSortedHabitLogs,
 } from "../ClientApi/HabitLogClientApi";
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
-import { color_def } from "./dummy"; // color_def をインポート
+import { color_def } from "@/constants/habitStyle";
+import { getColorHabitItemItemStyle } from "@/lib/colorUtils";
 
 interface LogSummarysProps {
   // habitItems: HabitItem[];
@@ -169,11 +170,18 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
   // internalHabitItems が変更されたら internalHabitItemInfos を生成
   useEffect(() => {
     if (internalHabitItems.length > 0 && color_def.length > 0) {
-      const newHabitItemInfos = internalHabitItems.map((habitItem) => {
-        const randomColorIndex = Math.floor(Math.random() * color_def.length);
+      const newHabitItemInfos = internalHabitItems.map((item) => {
+        const colorFromStringOrObject = getColorHabitItemItemStyle(
+          item.item_style
+        );
+
+        const finalColor =
+          colorFromStringOrObject ||
+          color_def[Math.floor(Math.random() * color_def.length)];
+
         return {
-          id: habitItem.id,
-          info_string: color_def[randomColorIndex],
+          id: item.id,
+          info_string: finalColor,
         };
       });
       setInternalHabitItemInfos(newHabitItemInfos);
@@ -325,6 +333,29 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
     // updateSettingsInDb(newSettingsState);
   };
 
+  const handleSummaryTypeChange = (orderId: string, newType: string) => {
+    if (!habitLogSummarySettings) return;
+    const currentSummarySetting = habitLogSummarySettings.logSummary[orderId];
+    if (!currentSummarySetting) return;
+
+    // タイプが有効なものかチェック (任意)
+    const validTypes = ["days", "weeks", "table"]; // 必要に応じて調整
+    if (!validTypes.includes(newType)) {
+      console.warn(`Invalid summary type: ${newType}`);
+      return;
+    }
+
+    const newSettingsState = {
+      ...habitLogSummarySettings,
+      logSummary: {
+        ...habitLogSummarySettings.logSummary,
+        [orderId]: { ...currentSummarySetting, type: newType },
+      },
+    };
+    setHabitLogSummarySettings(newSettingsState);
+    // updateSettingsInDb(newSettingsState); // DB更新
+  };
+
   const leafhabitItems = useMemo(() => {
     // console.log("leafhabitItems called ", treeItems);
     return getLeafHabitItems(internalTreeItems, internalHabitItems); // 内部データを使用
@@ -399,6 +430,7 @@ const LogSummarys: React.FC<LogSummarysProps> = ({
               toggleDeleteSummary={toggleDeleteSummary}
               toggleSelectHabit={toggleSelectHabit}
               writeSummaryDetails={writeSummaryDetails}
+              onSummaryTypeChange={handleSummaryTypeChange} // ★ タイプ変更ハンドラを渡す
             />
           );
         }

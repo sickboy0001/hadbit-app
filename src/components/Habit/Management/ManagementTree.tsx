@@ -18,7 +18,11 @@ import {
 import { toast } from "sonner";
 import { createHabitItemTreeEntry } from "@/app/actions/habit_item_tree";
 import ModalHabitItem from "./ModalHabitItem";
-import { HabitItem, HabitItemWithTreeInfo } from "@/types/habit/habit_item";
+import {
+  HabitItem,
+  HabititemItemStyle,
+  HabitItemWithTreeInfo,
+} from "@/types/habit/habit_item";
 import { findItemDeep, removeItemDeep } from "@/components/dnd-tree/utils";
 import {
   buildTreeFromHabitAndParentReration,
@@ -113,6 +117,7 @@ const ManagementTree: React.FC = () => {
           name: newItemName.trim(),
           short_name: newItemName.trim(),
           description: newItemName.trim(),
+          item_style: null,
         };
         // 1. habit_items に項目を作成し、結果 (IDを含む) を取得
         const createdItem = await createHabitItem(userId, newItemData);
@@ -125,6 +130,7 @@ const ManagementTree: React.FC = () => {
           name: newItemName.trim(), // 前後の空白を除去
           children: [], // 子アイテムはなし
           expanded: false, // 初期状態は折りたたみ
+          item_style: {}, // 新規作成時は null またはデフォルト値を設定
         };
 
         // 現在のツリーアイテム配列の末尾に新しいアイテムを追加
@@ -157,6 +163,30 @@ const ManagementTree: React.FC = () => {
     setItemToRemoveId(idToRemove); // 削除対象のIDをstateに保存
     setIsAlertDialogOpen(true); // AlertDialogを開く
   }, []); // 依存配列は空
+
+  // // --- Style編集関連 ---
+  // const handleEditStyleItem = useCallback(
+  //   (idToEdit: number) => {
+  //     console.log("handleEditStyleItem called");
+  //     setEditingItemId(idToEdit);
+  //     const targetHabitItem = habitItems.find((item) => item.id === idToEdit);
+
+  //     if (targetHabitItem) {
+  //       const dataForModal: Partial<HabitItemWithTreeInfo> = {
+  //         ...targetHabitItem, // スプレッド構文で HabitItem のプロパティをコピー
+  //       };
+  //       setEditedItemData(dataForModal);
+  //     } else {
+  //       setEditedItemData(null); // アイテムが見つからない場合は null を設定
+  //       toast.error(`ID ${idToEdit} のアイテムが見つかりませんでした。`);
+  //       console.error(
+  //         `HabitItem with ID ${idToEdit} not found in habitItems state.`
+  //       );
+  //     }
+  //     setIsEditDialogOpen(true); // 編集ダイアログを開く
+  //   },
+  //   [habitItems]
+  // ); //  treeItems に依存
 
   // --- 編集関連 ---
   const handleEditItem = useCallback(
@@ -235,7 +265,16 @@ const ManagementTree: React.FC = () => {
               return itemsToUpdate.map((item) => {
                 if (item.id === itemIdNum) {
                   // IDが一致したら名前を更新
-                  return { ...item, name: updatedHabitItemFromDB.name! };
+                  const newItemStyle =
+                    typeof updatedHabitItemFromDB.item_style === "string"
+                      ? JSON.parse(updatedHabitItemFromDB.item_style)
+                      : updatedHabitItemFromDB.item_style;
+
+                  return {
+                    ...item,
+                    name: updatedHabitItemFromDB.name!,
+                    item_style: newItemStyle, // 更新された item_style を設定
+                  };
                 }
                 if (item.children && item.children.length > 0) {
                   // 子アイテムがあれば再帰的に処理
@@ -361,6 +400,89 @@ const ManagementTree: React.FC = () => {
   const dialogEditTitle = `アイテム編集: ${getItemNameById(
     String(editingItemId)
   )}`;
+
+  const handleModalColorChange = useCallback((color: string) => {
+    console.log(
+      "[ManagementTree] handleModalColorChange called with new color:",
+      color
+    );
+
+    setEditedItemData((prev) => {
+      if (!prev) {
+        console.warn(
+          "[ManagementTree] setEditedItemData: prev is null. Cannot update item_style."
+        );
+        return null;
+      }
+
+      // color 以外のプロパティも保持する可能性があるため、Record<string, unknown> を使用
+      let currentItemStyleObject: Partial<HabititemItemStyle> & {
+        [key: string]: unknown;
+      } = {};
+
+      // prev.item_style が文字列の場合はパースし、オブジェクトの場合はそれをコピーする
+      if (prev.item_style) {
+        if (typeof prev.item_style === "string") {
+          try {
+            const parsedStyle = JSON.parse(prev.item_style);
+            if (typeof parsedStyle === "object" && parsedStyle !== null) {
+              currentItemStyleObject = parsedStyle;
+              console.log(
+                "[ManagementTree] Parsed existing item_style string:",
+                currentItemStyleObject
+              );
+            } else {
+              console.warn(
+                "[ManagementTree] Parsed item_style string is not an object. Defaulting to empty style."
+              );
+            }
+          } catch (error) {
+            console.error(
+              "[ManagementTree] Failed to parse item_style JSON string. Defaulting to empty style:",
+              error
+            );
+          }
+        } else if (
+          typeof prev.item_style === "object" &&
+          prev.item_style !== null
+        ) {
+          // prev.item_style が Partial<HabititemItemStyle> を満たすか、または color プロパティを持つことを期待
+          if (
+            typeof (prev.item_style as Partial<HabititemItemStyle>).color ===
+              "string" ||
+            Object.keys(prev.item_style).length > 0
+          ) {
+            // prev.item_style を currentItemStyleObject に代入する際、型を合わせる
+            currentItemStyleObject = {
+              ...prev.item_style,
+            } as Partial<HabititemItemStyle> & { [key: string]: unknown };
+          }
+          console.log(
+            "[ManagementTree] Used existing item_style object:",
+            currentItemStyleObject
+          );
+        }
+      }
+
+      // スタイルオブジェクト内の color プロパティを更新
+      const updatedItemStyleObject: HabititemItemStyle & {
+        [key: string]: unknown;
+      } = {
+        ...currentItemStyleObject,
+        color: color, // 新しい色を設定または上書き
+      };
+      console.log(
+        "[ManagementTree] Updated item_style object:",
+        updatedItemStyleObject
+      );
+
+      return {
+        ...prev,
+        item_style: updatedItemStyleObject, // オブジェクトとして保存
+      };
+    });
+  }, []);
+
   // ★ 認証情報読み込み中またはデータ取得中の表示
   if (authLoading) {
     return <div className="p-4 text-center">読み込み中...</div>;
@@ -407,6 +529,7 @@ const ManagementTree: React.FC = () => {
           item={editedItemData} // ★ 編集中の一時データ (Partial<HabitItem>) を渡す
           onFormChange={handleModalItemChange} // ★ 中身の変更を受け取る関数を渡す
           onCheckboxChange={handleCheckboxChange}
+          onColorChange={handleModalColorChange}
         />
       </DialogEdit>
     </div>

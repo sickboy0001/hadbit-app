@@ -27,7 +27,7 @@ export const headerNavItems: NavItem[] = [
     type: "dropdown",
     label: "メニュー",
     items: [
-      { id: "habit", label: "habit", href: "/habit/manager" },
+      { id: "Mantenance", label: "mantenance", href: "/habit/manager" },
       { id: "import", label: "import", href: "/habit/logImport" },
       // { id: "docs", href: "/docs", label: "ドキュメント" },
       // { id: "settings", href: "/settings", label: "設定" },

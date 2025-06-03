@@ -21,6 +21,8 @@ import { DbHabitLog } from "@/app/actions/habit_logs";
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
 import { Input } from "@/components/ui/input"; // Inputを追加
 import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
+import { Skeleton } from "@/components/ui/skeleton"; // Skeleton をインポート
+import LogSummaryWeeks from "./LogSummaryWeeks";
 
 interface LogSummaryItemProps {
   summarySetting: HabitLogSummarySettings["logSummary"][string];
@@ -45,6 +47,7 @@ interface LogSummaryItemProps {
     newName: string,
     newDescription: string
   ) => void;
+  onSummaryTypeChange: (orderId: string, newType: string) => void; // ★ タイプ変更ハンドラの型定義
 }
 const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
   summarySetting,
@@ -62,6 +65,7 @@ const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
   toggleDeleteSummary,
   toggleSelectHabit,
   writeSummaryDetails,
+  onSummaryTypeChange,
 }) => {
   const filterIds = summarySetting.filtersHabitItemIds;
   const thisHabitLogsForSummary = useMemo(() => {
@@ -218,18 +222,16 @@ const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
           </Button>
           <Select
             defaultValue={summarySetting.type}
-            onValueChange={(value) =>
-              console.log("Type changed to:", value, "for order:", order)
-            }
+            onValueChange={(newType) => onSummaryTypeChange(order, newType)} // ★ タイプ変更ハンドラを呼び出す
           >
             <SelectTrigger className="w-[80px] h-9 text-xs">
               <SelectValue placeholder="種類" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1day" className="text-xs">
+              <SelectItem value="days" className="text-xs">
                 日
               </SelectItem>
-              <SelectItem value="1week" className="text-xs">
+              <SelectItem value="weeks" className="text-xs">
                 週
               </SelectItem>
               <SelectItem value="table" className="text-xs">
@@ -251,17 +253,50 @@ const LogSummaryItem: React.FC<LogSummaryItemProps> = ({
       </div>
 
       {isExpanded && (
-        <div id={`summary-content-${order}`}>
-          <LogSummaryDaily
-            habitItems={habitItems}
-            habitItemInfos={habitItemInfos}
-            habitLogs={thisHabitLogsForSummary}
-            startDate={startDate}
-            endDate={endDate}
-            onLogClick={onLogClick}
-            displayType={summarySetting.type}
-          />
-        </div>
+        <>
+          <div id={`summary-content-${order}`}>
+            {habitItems.length === 0 ||
+            (filterIds.length > 0 && thisHabitLogsForSummary.length === 0) ? (
+              <div className="p-4">
+                {filterIds.length > 0 &&
+                thisHabitLogsForSummary.length === 0 &&
+                habitItems.length > 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    選択された習慣のログは期間内にありません。
+                  </p>
+                ) : (
+                  <>
+                    <Skeleton className="h-8 w-full mb-2" />
+                    <Skeleton className="h-20 w-full" />
+                  </>
+                )}
+              </div>
+            ) : summarySetting.type === "days" ||
+              summarySetting.type === "1day" ? (
+              <LogSummaryDaily
+                habitItems={habitItems}
+                habitItemInfos={habitItemInfos}
+                habitLogs={thisHabitLogsForSummary}
+                startDate={startDate}
+                endDate={endDate}
+                onLogClick={onLogClick}
+              />
+            ) : summarySetting.type === "weeks" ? (
+              <LogSummaryWeeks
+                habitItems={habitItems}
+                habitItemInfos={habitItemInfos}
+                habitLogs={thisHabitLogsForSummary}
+                startDate={startDate}
+                onLogClick={onLogClick}
+              />
+            ) : summarySetting.type === "table" ? (
+              // TODO: "table" タイプの場合のコンポーネントをここに実装
+              <div className="p-4 text-center text-muted-foreground border-2">
+                テーブル表示は準備中です。
+              </div>
+            ) : null}
+          </div>
+        </>
       )}
     </div>
   );

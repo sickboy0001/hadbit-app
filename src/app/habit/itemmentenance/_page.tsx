@@ -4,6 +4,6 @@ export default async function HabitItemsPage() {
   // サーバーコンポーネントで初期データを取得
 
   return (
-    <div className="container mx-auto">{/* <PageHabitItemsManager /> */}</div>
+    <div className="container mx-auto ">{/* <PageHabitItemsManager /> */}</div>
   );
 }
