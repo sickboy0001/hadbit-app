@@ -3,10 +3,15 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NestedGroupedButtons, PresetDisplayItem } from "@/types/habit/ui";
+import {
+  NestedGroupedButtons,
+  PresetDisplayItem,
+  TreeItem,
+} from "@/types/habit/ui";
+import { mapTreeItemsToPresetDisplayItems } from "@/util/habitTreeConverters";
 
 interface PresetButtonsSectionProps {
-  groupedButtons: NestedGroupedButtons;
+  treeItems: TreeItem[]; // groupedButtons の代わりに treeItems を受け取る
   onToggleHabit: (habitId: string, habitName: string) => void;
   getParentName: (parentId: string) => string;
 }
@@ -92,10 +97,31 @@ const RenderPresetItem: React.FC<{
 };
 
 const PresetButtonsSection: React.FC<PresetButtonsSectionProps> = ({
-  groupedButtons,
+  treeItems,
   onToggleHabit,
   getParentName,
 }) => {
+  // treeItems から groupedButtons を生成
+  const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
+    (acc, topLevelItem) => {
+      acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
+        topLevelItem.children || []
+      );
+      return acc;
+    },
+    {}
+  );
+
+  if (Object.keys(groupedButtons).length === 0) {
+    return (
+      <div>
+        <h2 className="text-xl font-semibold mb-2">■習慣の記録</h2>
+        <p className="text-sm text-muted-foreground">
+          記録対象の習慣がありません。管理画面から習慣を登録してください。
+        </p>
+      </div>
+    );
+  }
   return (
     <>
       <h2 className="text-xl font-semibold">■習慣の記録</h2>

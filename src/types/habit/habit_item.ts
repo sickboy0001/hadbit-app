@@ -33,4 +33,5 @@ export type HabitItemTree = {
 
 export interface HabititemItemStyle {
   color: string;
+  icon?: string; // アイコン名を格納するプロパティを追加
 }

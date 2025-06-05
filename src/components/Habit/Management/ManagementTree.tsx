@@ -28,6 +28,7 @@ import {
   buildTreeFromHabitAndParentReration,
   flattenTreeForOrderUpdate,
 } from "@/util/treeConverter";
+import { color_def } from "@/constants/habitStyle"; // ★ color_def をインポート
 const ManagementTree: React.FC = () => {
   const [isPending, startTransition] = useTransition(); // ★ トランジションフック
   const [habitItems, setHabitItems] = useState<HabitItem[]>([]);
@@ -483,6 +484,64 @@ const ManagementTree: React.FC = () => {
     });
   }, []);
 
+  const handleModalIconChange = useCallback((iconName: string) => {
+    console.log(
+      "[ManagementTree] handleModalIconChange called with new icon:",
+      iconName
+    );
+    setEditedItemData((prev) => {
+      if (!prev) {
+        console.warn(
+          "[ManagementTree] setEditedItemData: prev is null. Cannot update item_style for icon."
+        );
+        return null;
+      }
+
+      let currentItemStyleObject: Partial<HabititemItemStyle> & {
+        // HabititemItemStyle を使用
+        [key: string]: unknown;
+      } = {};
+
+      if (prev.item_style) {
+        if (typeof prev.item_style === "string") {
+          try {
+            const parsedStyle = JSON.parse(prev.item_style);
+            if (typeof parsedStyle === "object" && parsedStyle !== null) {
+              currentItemStyleObject = parsedStyle;
+            }
+          } catch (error) {
+            console.error(
+              "[ManagementTree] Failed to parse item_style JSON string for icon. Defaulting to empty style:",
+              error
+            );
+          }
+        } else if (
+          typeof prev.item_style === "object" &&
+          prev.item_style !== null
+        ) {
+          currentItemStyleObject = {
+            ...prev.item_style,
+          } as Partial<HabititemItemStyle> & { [key: string]: unknown };
+        }
+      }
+
+      const updatedItemStyleObject: HabititemItemStyle & {
+        // HabititemItemStyle を使用
+        [key: string]: unknown;
+      } = {
+        ...currentItemStyleObject,
+        icon: iconName, // アイコンを設定または更新
+        color:
+          currentItemStyleObject.color ||
+          (color_def.length > 0 ? color_def[0] : "#000000"), // color が undefined の場合にデフォルト色を設定
+      };
+      console.log(
+        "[ManagementTree] Updated item_style object for icon:",
+        updatedItemStyleObject
+      );
+      return { ...prev, item_style: updatedItemStyleObject };
+    });
+  }, []);
   // ★ 認証情報読み込み中またはデータ取得中の表示
   if (authLoading) {
     return <div className="p-4 text-center">読み込み中...</div>;
@@ -530,6 +589,7 @@ const ManagementTree: React.FC = () => {
           onFormChange={handleModalItemChange} // ★ 中身の変更を受け取る関数を渡す
           onCheckboxChange={handleCheckboxChange}
           onColorChange={handleModalColorChange}
+          onIconChange={handleModalIconChange}
         />
       </DialogEdit>
     </div>

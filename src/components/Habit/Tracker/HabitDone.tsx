@@ -145,7 +145,7 @@ export default function HabitDone() {
           formattedEndDate
         );
         setReadHabitLogs(sortedLogs);
-        console.log("habitlogs", sortedLogs);
+        // console.log("habitlogs", sortedLogs);
       } catch (error) {
         toast.error("習慣記録の読み込みに失敗しました。");
         console.error("Failed to fetch habit logs:", error);

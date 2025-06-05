@@ -10,17 +10,11 @@ import {
 import { ja } from "date-fns/locale"; // 日本語ロケールをインポート
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item";
-import {
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import {
-  getBackgroundColorWithOpacity,
-  getBorderColorWithOpacity,
-} from "@/lib/colorUtils";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { getHabitItemItemStyleProp } from "@/util/habitItemItemStyel";
+import LogSummaryWeekslog from "./LogSummaryWeekslog";
 
 interface LogSummaryColumnarWeeksProps {
   habitItems: HabitItem[];
@@ -37,85 +31,13 @@ interface ProcessedDbHabitLog extends DbHabitLog {
   _parsedDoneAtDate?: Date | null;
 }
 
-// DailyLogItemは、週の表示に合わせて日付も表示するように修正
-interface WeeklyLogItemProps {
-  log: DbHabitLog;
-  habitName: string;
-  markerColorClass: string;
-  onLogClick: (
-    log: DbHabitLog,
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => void;
-  displayDate: Date; // 表示する日付を追加
-}
-
-const WeeklyLogItem: React.FC<WeeklyLogItemProps> = React.memo(
-  ({ log, habitName, markerColorClass, onLogClick, displayDate }) => {
-    return (
-      <TooltipPrimitive.Root>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="w-full text-left p-1 rounded-md hover:bg-gray-200 text-xs flex justify-between items-center border"
-            style={{
-              borderColor: getBorderColorWithOpacity(markerColorClass),
-              backgroundColor: getBackgroundColorWithOpacity(markerColorClass),
-            }}
-            onClick={(event) => onLogClick(log, event)}
-          >
-            <div className="flex items-center">
-              {/* 日付を表示 */}
-              <span
-                className={
-                  displayDate.getDay() === 0
-                    ? "text-red-600"
-                    : displayDate.getDay() === 6
-                    ? "text-blue-600"
-                    : ""
-                }
-              >
-                {format(displayDate, "M/d(EEE)", { locale: ja })}
-              </span>{" "}
-              <span
-                className="font-semibold"
-                style={{ color: markerColorClass }}
-              >
-                {habitName}
-              </span>
-              {log.comment && (
-                <span className="text-gray-700 text-[0.7rem] italic ml-1">
-                  ({log.comment})
-                </span>
-              )}
-            </div>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="font-semibold">{habitName}</p>
-          <p>
-            {format(parseISO(log.done_at), "yyyy年M月d日 HH:mm", {
-              locale: ja,
-            })}
-          </p>
-          {log.comment && (
-            <p className="text-sm text-muted-foreground">
-              コメント: {log.comment}
-            </p>
-          )}
-        </TooltipContent>
-      </TooltipPrimitive.Root>
-    );
-  }
-);
-WeeklyLogItem.displayName = "WeeklyLogItem";
-
 const LogSummaryWeeksInternal: React.FC<LogSummaryColumnarWeeksProps> = (
   props: LogSummaryColumnarWeeksProps
 ) => {
   const {
     habitItems,
     habitLogs,
-    habitItemInfos = [],
+    // habitItemInfos = [],
     startDate,
     onLogClick,
   } = props;
@@ -146,13 +68,6 @@ const LogSummaryWeeksInternal: React.FC<LogSummaryColumnarWeeksProps> = (
     habitItems.forEach((item) => map.set(item.id, item));
     return map;
   }, [habitItems]);
-
-  // habitItemInfos を ID で検索可能なマップに変換
-  const habitItemInfosMap = useMemo(() => {
-    const map = new Map<number, HabitItemInfo>();
-    habitItemInfos.forEach((info) => map.set(info.id, info));
-    return map;
-  }, [habitItemInfos]);
 
   // 全てのログを事前処理して、パース済み日付とソートを行う
   const processedHabitLogs = useMemo(() => {
@@ -251,19 +166,27 @@ const LogSummaryWeeksInternal: React.FC<LogSummaryColumnarWeeksProps> = (
                 <div className="grid grid-cols-2 gap-1.5">
                   {logsInThisWeek.length > 0 ? (
                     logsInThisWeek.map((log) => {
-                      const habitInfo = habitItemInfosMap.get(log.item_id);
-                      const markerColorClass = habitInfo
-                        ? habitInfo.info_string
-                        : "#3B82F6";
+                      const currentHabitItem = habitItems.find(
+                        (item) => item.id === log.item_id
+                      );
+                      const color = getHabitItemItemStyleProp(
+                        currentHabitItem,
+                        "color"
+                      );
+                      const iconName = getHabitItemItemStyleProp(
+                        currentHabitItem,
+                        "icon"
+                      );
 
                       return (
-                        <WeeklyLogItem
+                        <LogSummaryWeekslog
                           key={log.id}
                           log={log}
                           habitName={getHabitNameById(log.item_id)}
-                          markerColorClass={markerColorClass}
+                          markerColorClass={color}
                           onLogClick={onLogClick}
                           displayDate={log._parsedDoneAtDate!} // パース済みのDateオブジェクトを渡す
+                          iconName={iconName}
                         />
                       );
                     })

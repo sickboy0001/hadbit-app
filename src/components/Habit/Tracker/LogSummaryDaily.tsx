@@ -5,17 +5,11 @@ import { format, parseISO } from "date-fns";
 import { ja } from "date-fns/locale"; // 日本語ロケールをインポート
 import { DbHabitLog } from "@/app/actions/habit_logs"; // このパスをプロジェクトに合わせて調整してください
 import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
-import {
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"; // shadcn/ui の Tooltip を使用
-import * as TooltipPrimitive from "@radix-ui/react-tooltip";
-import {
-  getBackgroundColorWithOpacity,
-  getBorderColorWithOpacity,
-} from "@/lib/colorUtils";
+import { TooltipProvider } from "@/components/ui/tooltip"; // shadcn/ui の Tooltip を使用
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { getHabitItemItemStyleProp } from "@/util/habitItemItemStyel";
+import LogSummaryDailyLog from "./LogSummaryDailyLog";
 interface LogSummaryDailyProps {
   habitItems: HabitItem[];
   habitLogs: DbHabitLog[];
@@ -43,73 +37,13 @@ interface ProcessedDbHabitLog extends DbHabitLog {
   _parsedDoneAtDate?: Date | null;
 }
 
-interface DailyLogItemProps {
-  log: DbHabitLog;
-  habitName: string;
-  markerColorClass: string;
-  onLogClick: (
-    log: DbHabitLog,
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => void;
-}
-
-const DailyLogItem: React.FC<DailyLogItemProps> = React.memo(
-  ({ log, habitName, markerColorClass, onLogClick }) => {
-    // console.log(`Rendering DailyLogItem: ${habitName} - ${log.id}`); // For debugging re-renders
-    return (
-      <TooltipPrimitive.Root>
-        {/* Use Radix UI Root directly */}
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="w-full text-left p-1 rounded-md hover:bg-gray-200 text-xs flex justify-between items-center border"
-            style={{
-              borderColor: getBorderColorWithOpacity(markerColorClass),
-              backgroundColor: getBackgroundColorWithOpacity(markerColorClass),
-            }}
-            onClick={(event) => onLogClick(log, event)}
-          >
-            <div className="flex items-center">
-              <span
-                className="font-semibold"
-                style={{ color: markerColorClass }}
-              >
-                {habitName}
-              </span>
-              {log.comment && (
-                <span className="text-gray-700 text-[0.7rem] italic ml-1">
-                  ({log.comment})
-                </span>
-              )}
-            </div>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="font-semibold">{habitName}</p>
-          <p>
-            {format(parseISO(log.done_at), "yyyy年M月d日 HH:mm", {
-              locale: ja,
-            })}
-          </p>
-          {log.comment && (
-            <p className="text-sm text-muted-foreground">
-              コメント: {log.comment}
-            </p>
-          )}
-        </TooltipContent>
-      </TooltipPrimitive.Root>
-    );
-  }
-);
-DailyLogItem.displayName = "DailyLogItem";
-
 const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
   props: LogSummaryDailyProps
 ) => {
   const {
     habitItems,
     habitLogs,
-    habitItemInfos = [],
+    // habitItemInfos  = [],
     startDate,
     endDate,
     onLogClick,
@@ -163,31 +97,10 @@ const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
   // console.log("[LogSummaryDaily]habitItemInfos", habitItemInfos);
   // habitItems を ID で検索可能なマップに変換 (useMemoでキャッシュ)
   const habitItemsMap = useMemo(() => {
-    // const t0 = performance.now();
     const map = new Map<number, HabitItem>();
     habitItems.forEach((item) => map.set(item.id, item));
-    // const t1 = performance.now();
-    // console.log(
-    //   `[${componentId}] Created habitItemsMap in ${t1 - t0} ms. Item count: ${
-    //     map.size
-    //   }`
-    // );
     return map;
   }, [habitItems]);
-
-  // habitItemInfos を ID で検索可能なマップに変換 (useMemoでキャッシュ)
-  const habitItemInfosMap = useMemo(() => {
-    // const t0 = performance.now();
-    const map = new Map<number, HabitItemInfo>();
-    habitItemInfos.forEach((info) => map.set(info.id, info));
-    // const t1 = performance.now();
-    // console.log(
-    //   `[${componentId}] Created habitItemInfosMap in ${
-    //     t1 - t0
-    //   } ms. Info count: ${map.size}`
-    // );
-    return map;
-  }, [habitItemInfos]);
 
   // 日付ごとのログをまとめる
   const logsByDate = useMemo(() => {
@@ -352,21 +265,26 @@ const LogSummaryDailyInternal: React.FC<LogSummaryDailyProps> = (
                       <div className="space-y-1">
                         {logsForThisDate.length > 0 ? (
                           logsForThisDate.map((log) => {
-                            const habitInfo = habitItemInfosMap.get(
-                              // マップから取得
-                              log.item_id
+                            const currentHabitItem = habitItems.find(
+                              (item) => item.id === log.item_id
                             );
-                            const markerColorClass = habitInfo
-                              ? habitInfo.info_string
-                              : "#3B82F6"; // Default to a HEX color (e.g., blue-500)
+                            const color = getHabitItemItemStyleProp(
+                              currentHabitItem,
+                              "color"
+                            );
+                            const iconName = getHabitItemItemStyleProp(
+                              currentHabitItem,
+                              "icon"
+                            );
 
                             return (
-                              <DailyLogItem
+                              <LogSummaryDailyLog
                                 key={log.id}
                                 log={log}
                                 habitName={getHabitNameById(log.item_id)}
-                                markerColorClass={markerColorClass}
+                                color={color}
                                 onLogClick={onLogClick}
+                                iconName={iconName}
                               />
                             );
                           })

@@ -9,7 +9,7 @@ import React, {
   useMemo,
   startTransition,
 } from "react";
-import { HabitItem, HabitItemInfo } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
+import { HabitItem } from "@/types/habit/habit_item"; // このパスをプロジェクトに合わせて調整してください
 import { DbHabitLog } from "@/app/actions/habit_logs"; // このパスをプロジェクトに合わせて調整してください
 import { TreeItem } from "@/types/habit/ui"; // このパスをプロジェクトに合わせて調整してください
 import { generateDates } from "@/lib/datetime"; // このパスをプロジェクトに合わせて調整してください
@@ -19,7 +19,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronRightIcon } from "lucide-react"; // アイコンをインポート
+import {
+  icons as lucideIcons, // lucideIconsとしてエイリアス
+  ChevronDown,
+  ChevronRightIcon,
+  Dumbbell,
+  LucideIcon, // LucideIcon型をインポート
+} from "lucide-react";
 import { format, isSameDay, addDays, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth をインポート
 // import { fetchSortedHabitLogs } from "../ClientApi/HabitLogClientApi"; // fetchSortedHabitLogs をインポート
@@ -33,6 +39,8 @@ import {
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 import { color_def } from "@/constants/habitStyle";
 import { getColorHabitItemItemStyle } from "@/lib/colorUtils";
+import { ja } from "date-fns/locale/ja";
+import { getHabitItemItemStyleProp } from "@/util/habitItemItemStyel";
 
 interface GanttChartProps {
   // habitItems, habitItemInfos, treeItems は内部で取得するため削除
@@ -48,12 +56,6 @@ interface GanttChartProps {
 }
 
 const GattChartHabitTracker: React.FC<GanttChartProps> = ({
-  // habitItems, // 削除
-  // habitItemInfos, // 削除
-  // habitLogs,
-  // treeItems,
-  // startDate,
-  // endDate,
   onLogClick,
   expandedCategories,
   onToggleCategory,
@@ -63,9 +65,9 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   const userId = user?.userid ?? 0;
 
   const [internalHabitItems, setInternalHabitItems] = useState<HabitItem[]>([]);
-  const [internalHabitItemInfos, setInternalHabitItemInfos] = useState<
-    HabitItemInfo[]
-  >([]);
+  // const [internalHabitItemInfos, setInternalHabitItemInfos] = useState<
+  //   HabitItemInfo[]
+  // >([]);
   const [internalTreeItems, setInternalTreeItems] = useState<TreeItem[]>([]);
 
   const today = useMemo(() => new Date(), []);
@@ -79,7 +81,7 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     // デバッグ用にコンポーネントIDを生成
     `GattChartHabitTracker-${Math.random().toString(36).substr(2, 9)}`
   ).current;
-  console.log(`[${componentId}] GattChartHabitTracker rendered`);
+  // console.log(`[${componentId}] GattChartHabitTracker rendered`);
   const refreshInternalHabitLogs = useCallback(async () => {
     if (!userId || userId === 0) return;
 
@@ -144,20 +146,19 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
   // internalHabitItems が変更されたら internalHabitItemInfos を生成
   useEffect(() => {
     if (internalHabitItems.length > 0 && color_def.length > 0) {
-      const newHabitItemInfos = internalHabitItems.map((item) => {
-        const colorFromStringOrObject = getColorHabitItemItemStyle(
-          item.item_style
-        );
-        const finalColor =
-          colorFromStringOrObject ||
-          color_def[Math.floor(Math.random() * color_def.length)];
-
-        return {
-          id: item.id,
-          info_string: finalColor,
-        };
-      });
-      setInternalHabitItemInfos(newHabitItemInfos);
+      // const newHabitItemInfos = internalHabitItems.map((item) => {
+      //   const colorFromStringOrObject = getColorHabitItemItemStyle(
+      //     item.item_style
+      //   );
+      //   const finalColor =
+      //     colorFromStringOrObject ||
+      //     color_def[Math.floor(Math.random() * color_def.length)];
+      //   return {
+      //     id: item.id,
+      //     info_string: finalColor,
+      //   };
+      // });
+      // setInternalHabitItemInfos(newHabitItemInfos);
     }
   }, [internalHabitItems]);
 
@@ -295,6 +296,13 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
     setInternalEndDate(addDays(internalEndDate, daysInRange));
   };
 
+  // マーカー用のアイコンコンポーネントを取得するローカルヘルパー関数
+  const getIconComponentForMarker = (iconName?: string): LucideIcon => {
+    if (!iconName) return Dumbbell; // アイコン名がなければデフォルトでDumbbell
+    const Icon = lucideIcons[iconName as keyof typeof lucideIcons];
+    return Icon || Dumbbell; // 見つからなければDumbbell
+  };
+
   return (
     <TooltipProvider>
       {/* ref を追加してスクロールコンテナへの参照を取得 */}
@@ -326,10 +334,20 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
                   className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[40px]" // 日付セルに最小幅を設定
                 >
                   <div className="flex flex-col items-center">
-                    <span>{format(date, "M/d")}</span>
-                    <span className="font-normal text-[10px]">
-                      ({format(date, "EEE")})
-                    </span>
+                    <div
+                      className={
+                        date.getDay() === 0
+                          ? "text-red-600"
+                          : date.getDay() === 6
+                          ? "text-blue-600"
+                          : ""
+                      }
+                    >
+                      <span>{format(date, "M/d")}</span>
+                      <span className="font-normal text-[10px]">
+                        ({format(date, "EEE", { locale: ja })})
+                      </span>
+                    </div>
                   </div>
                 </th>
               ))}
@@ -442,13 +460,30 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
                         habit.id.toString(),
                         date
                       ); // 特定のログを取得
-                      const habitInfo = internalHabitItemInfos.find(
+                      // const habitInfo = internalHabitItemInfos.find(
+                      //   (info) => info.id === habit.id
+                      // );
+                      const habititem = internalHabitItems.find(
                         (info) => info.id === habit.id
                       );
-                      // console.log(habitItemInfos);
-                      const markerColor = habitInfo
-                        ? habitInfo.info_string
-                        : "text-blue-500"; // デフォルト色
+
+                      // console.log("habititem:", habititem);
+                      const extractedColor = habititem
+                        ? getColorHabitItemItemStyle(habititem.item_style)
+                        : undefined;
+                      const markerColor = extractedColor || "text-blue-500"; // 取得できない場合はデフォルト色
+
+                      const iconNameFromItem = habititem
+                        ? getHabitItemItemStyleProp(habititem, "icon")
+                        : undefined;
+                      const IconToRender =
+                        getIconComponentForMarker(iconNameFromItem);
+                      // console.log("IconToRender, iconNameFromItem", IconToRender.displayName, iconNameFromItem);
+
+                      // // console.log(habitItemInfos);
+                      // const markerColor = habitInfo
+                      //   ? habitInfo.info_string
+                      //   : "text-blue-500"; // デフォルト色
 
                       return (
                         <td
@@ -470,9 +505,11 @@ const GattChartHabitTracker: React.FC<GanttChartProps> = ({
                                     color: markerColor,
                                   }} // hover時の色も考慮するとクラス制御が良いかも
                                 >
-                                  <span className="inline-flex items-center justify-center h-5 w-5 text-xs font-bold cursor-default">
-                                    ◆
-                                  </span>
+                                  {/* <span className="inline-flex items-center justify-center h-5 w-5 text-xs font-bold cursor-default">
+                                    <IconComponent className="h-4 w-4 mr-2" />
+                                  </span> */}
+                                  {/* 動的に決定されたアイコンをレンダリング */}
+                                  <IconToRender className="h-4 w-4" />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent>

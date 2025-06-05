@@ -11,6 +11,9 @@ FOREIGN KEY (item_id)
 REFERENCES public.habit_items (id)
 ON DELETE CASCADE  -- habit_items のレコードを削除する際、関連する habit_item_tree レコードも削除
 
+CREATE INDEX IF NOT EXISTS idx_habit_item_tree_item_id
+ON public.habit_item_tree (item_id);
+
 
 -- 親IDでの検索を高速化するためのインデックス
 CREATE INDEX IF NOT EXISTS idx_habit_item_tree_parent_id ON public.habit_item_tree(parent_id);

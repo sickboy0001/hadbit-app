@@ -16,11 +16,10 @@ import {
   updateHabitLogEntry,
 } from "../ClientApi/HabitLogClientApi";
 import { HabitItem } from "@/types/habit/habit_item";
-import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
+import { TreeItem } from "@/types/habit/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
-import { mapTreeItemsToPresetDisplayItems } from "@/util/habitTreeConverters";
 import GanttChart from "./GattChartHabitTracker";
 
 import ModalDbHabitLogEditForm from "../organisms/ModalDbHabitLogEditForm";
@@ -46,7 +45,8 @@ import {
 import { HabitLogSummarySettings } from "@/types/habit/LogSumsSetting";
 import HabitDone from "./HabitDone";
 import ColorDisplayTest from "./ColorDisplayTest";
-import { color_def } from "@/constants/habitStyle";
+import { color_def, iconSampleArray } from "@/constants/habitStyle";
+import IconDisplayTest from "./IconDisplayTest";
 
 // const DAY_DIFF = 20;
 
@@ -361,17 +361,6 @@ const HabitTracker = () => {
     [user, openEditDialogForLog, triggerDataRefresh]
   );
 
-  // Group preset buttons using treeItems
-  const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
-    (acc, topLevelItem) => {
-      acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
-        topLevelItem.children || []
-      );
-      return acc;
-    },
-    {}
-  );
-
   // ガントチャートのカテゴリ開閉をトグルする関数
   const toggleGanttCategory = useCallback((categoryId: string) => {
     setGanttExpandedCategories((prev) => ({
@@ -566,7 +555,7 @@ const HabitTracker = () => {
   return (
     <div className="space-y-6">
       <PresetButtonsSection
-        groupedButtons={groupedButtons}
+        treeItems={treeItems}
         onToggleHabit={toggleHabitAdd}
         getParentName={getParentName} // 更新されたゲッター関数を使用
       />
@@ -707,7 +696,6 @@ const HabitTracker = () => {
 
       {process.env.NODE_ENV === "development" && (
         <>
-          {" "}
           <div className="space-y-6">
             {/* ... (既存のコンポーネント) ... */}
             <div className="mt-8 p-4 border-t">
@@ -728,6 +716,9 @@ const HabitTracker = () => {
               カラーパレット テキスト表示テスト
             </h2>
             <ColorDisplayTest title="テスト" colors={color_def} />
+          </div>
+          <div className="mt-8 p-4 border-t">
+            <IconDisplayTest title="Iconテスト" icons={iconSampleArray} />
           </div>
         </>
       )}

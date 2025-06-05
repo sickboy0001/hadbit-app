@@ -12,15 +12,12 @@ import { format, addDays, startOfDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import { toast } from "sonner"; // sonner から toast をインポート
 
-import { NestedGroupedButtons, TreeItem } from "@/types/habit/ui";
 import { HabitItem } from "@/types/habit/habit_item";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildTreeFromHabitAndParentReration } from "@/util/treeConverter";
 
 import PresetButtonsSection from "@/components/Habit/organisms/PresetButtonsSection";
-import {
-  mapTreeItemsToPresetDisplayItems, // 新しいファイルからインポート
-} from "@/util/habitTreeConverters";
+
 import { DbHabitLog } from "@/app/actions/habit_logs";
 import { parseISO } from "date-fns/parseISO"; // ★ parseISO をインポート
 import ConfirmationDialog from "@/components/molecules/ConfirmationDialog"; // ★ ConfirmationDialog をインポート
@@ -39,6 +36,7 @@ import {
   updateHabitLogEntry,
 } from "../ClientApi/HabitLogClientApi";
 import { DAY_DEF_HABIT_DONE } from "@/constants/dateConstants"; // 定数をインポート
+import { TreeItem } from "@/types/habit/ui";
 
 export default function HabitDone() {
   const [, startTransition] = useTransition(); // ★ トランジションフック
@@ -111,7 +109,7 @@ export default function HabitDone() {
           formattedEndDate
         );
         setReadHabitLogs(sortedLogs);
-        console.log("habitlogs", sortedLogs);
+        // console.log("habitlogs", sortedLogs);
       } catch (error) {
         toast.error("習慣記録の読み込みに失敗しました。");
         console.error("Failed to fetch habit logs:", error);
@@ -247,15 +245,15 @@ export default function HabitDone() {
   };
 
   // Group preset buttons using treeItems
-  const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
-    (acc, topLevelItem) => {
-      acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
-        topLevelItem.children || []
-      );
-      return acc;
-    },
-    {}
-  );
+  // const groupedButtons = treeItems.reduce<NestedGroupedButtons>(
+  //   (acc, topLevelItem) => {
+  //     acc[String(topLevelItem.id)] = mapTreeItemsToPresetDisplayItems(
+  //       topLevelItem.children || []
+  //     );
+  //     return acc;
+  //   },
+  //   {}
+  // );
 
   // Get parent name from treeItems for PresetButtonsSection card titles
   const getParentNameFromTree = (parentId: string): string => {
@@ -398,7 +396,7 @@ export default function HabitDone() {
   return (
     <div className="space-y-6">
       <PresetButtonsSection
-        groupedButtons={groupedButtons}
+        treeItems={treeItems}
         onToggleHabit={toggleHabitForToday}
         getParentName={getParentNameFromTree} // 更新されたゲッター関数を使用
       />

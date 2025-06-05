@@ -4,15 +4,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch"; // Checkbox を Switch に変更
 import { HabitItem, HabititemItemStyle } from "@/types/habit/habit_item";
-import { color_def } from "@/constants/habitStyle";
+import { color_def, iconSampleArray } from "@/constants/habitStyle";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"; // Collapsible をインポート
+import {
+  ChevronDown,
+  ChevronRightIcon,
+  icons as lucideIcons, // lucide-react の全アイコンをインポート
+  LucideIcon, // 型として使用
+  HelpCircle, // iconSampleArray の名前が無効な場合のフォールバック
+  ImageIcon, // item_style.icon が未設定の場合のプレースホルダー
+} from "lucide-react";
+import { cn } from "@/lib/utils"; // cn をインポート
 
 interface ModalHabitItemProps {
   item: Partial<HabitItem> | null; // 編集中のデータ
@@ -21,6 +27,7 @@ interface ModalHabitItemProps {
   ) => void; // Input/Textarea の変更ハンドラ
   onCheckboxChange: (name: string, checked: boolean) => void; // Checkbox の変更ハンドラ
   onColorChange?: (color: string) => void; // 色の変更ハンドラ
+  onIconChange?: (iconName: string) => void; // アイコンの変更ハンドラ
 }
 
 const ModalHabitItem: React.FC<ModalHabitItemProps> = ({
@@ -28,8 +35,51 @@ const ModalHabitItem: React.FC<ModalHabitItemProps> = ({
   onFormChange,
   onCheckboxChange,
   onColorChange,
+  onIconChange,
 }) => {
-  const [isColorPickerDialogOpen, setIsColorPickerDialogOpen] = useState(false);
+  const [isColorSectionOpen, setIsColorSectionOpen] = useState(false); // 色選択セクションの開閉状態
+  const [isIconSectionOpen, setIsIconSectionOpen] = useState(false); // アイコン選択セクションの開閉状態
+
+  // --- Icon Definitions ---
+  interface IconDefinition {
+    name: string;
+    component: LucideIcon;
+  }
+
+  const icon_definitions: IconDefinition[] = iconSampleArray
+    .map((name) => {
+      const IconComponent = lucideIcons[name as keyof typeof lucideIcons];
+      return {
+        name,
+        component: IconComponent || HelpCircle, // 名前が無効ならHelpCircle
+      };
+    })
+    .filter(
+      (iconDef) =>
+        iconDef.component !== HelpCircle ||
+        iconSampleArray.includes("HelpCircle")
+    ); // HelpCircleが意図的なら残す
+
+  const itemStyleIconName =
+    item &&
+    typeof item.item_style === "object" &&
+    item.item_style !== null &&
+    "icon" in item.item_style &&
+    typeof (item.item_style as { icon?: unknown }).icon === "string"
+      ? (item.item_style as { icon: string }).icon
+      : undefined;
+
+  const getIconComponent = (name?: string): LucideIcon => {
+    const iconDef = icon_definitions.find((icon) => icon.name === name);
+    return iconDef ? iconDef.component : ImageIcon; // item_style.icon がない場合は ImageIcon
+  };
+
+  const CurrentIconComponent = getIconComponent(itemStyleIconName);
+  console.log(
+    "[ModalHabitItem] Determined currentIconName:",
+    itemStyleIconName
+  );
+
   if (!item) {
     // item が null の場合は何も表示しないか、ローディング表示などを出す
     return <div>読み込み中...</div>; // または null
@@ -119,82 +169,137 @@ const ModalHabitItem: React.FC<ModalHabitItemProps> = ({
         />
         <Label htmlFor="delete_flag">削除済み (論理削除)</Label>
       </div>
-      <div>
-        <label
-          htmlFor="color"
-          className="block text-sm font-medium text-gray-700"
+      <div className="mt-1 flex items-center space-x-2">
+        {/* 色選択セクションをCollapsibleでラップ */}
+        <Collapsible
+          open={isColorSectionOpen}
+          onOpenChange={setIsColorSectionOpen}
+          className="space-y-2"
         >
-          色
-        </label>
-        <div className="mt-1 flex items-center space-x-2">
-          {/* 現在選択されている色を表示するスウォッチ */}
-          <div
-            className="w-8 h-8 rounded-full border border-gray-300"
-            style={{ backgroundColor: currentColor }}
-          ></div>
-          <Input
-            type="text"
-            name="color"
-            id="color"
-            value={currentColor}
-            readOnly // 直接編集はしない
-            className="w-32"
-          />
+          <CollapsibleTrigger asChild>
+            <div
+              className={cn(
+                "flex items-center cursor-pointer select-none rounded-md hover:bg-accent/50 transition-colors p-2 -m-2" // クリックしやすいようにパディングとネガティブマージンを追加
+              )}
+            >
+              <label
+                htmlFor="color"
+                className="text-sm font-medium text-gray-700 cursor-pointer" // ラベルもクリック可能に
+              >
+                色
+              </label>
 
-          {/* カラーピッカーダイアログのトリガー */}
-          <Dialog
-            open={isColorPickerDialogOpen}
-            onOpenChange={setIsColorPickerDialogOpen}
-          >
-            <DialogTrigger asChild>
-              <Button variant="outline" className="ml-2">
-                色を選択
-              </Button>
-            </DialogTrigger>
-            {/* <DialogContent className="sm:max-w-[425px]" onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}> */}
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>色の選択</DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-5 gap-2 py-4">
-                {/* ここで色のグリッドをレンダリング */}
-                {color_def.map((color) => (
-                  <div
-                    key={color}
-                    className={`w-12 h-12 rounded-full cursor-pointer border-2 ${
-                      currentColor === color
-                        ? "border-blue-500"
-                        : "border-gray-300"
-                    } hover:border-blue-500 transition-all`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => {
-                      if (onColorChange) {
-                        onColorChange(color);
-                      }
-                      setIsColorPickerDialogOpen(false); // ダイアログを閉じる
-                    }}
-                    role="button"
-                    aria-label={`色: ${color}`}
-                  >
-                    {currentColor === color && ( // 選択された色にチェックマークなどを表示
-                      <svg
-                        className="w-full h-full text-white p-1"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                ))}
+              {/* 現在選択されている色を表示するスウォッチ */}
+              <div
+                className="w-6 h-6 rounded-full border border-gray-300 ml-4" // マージン調整
+                style={{ backgroundColor: currentColor }}
+              ></div>
+
+              {isColorSectionOpen ? (
+                <ChevronDown className="h-4 w-4 mr-2 ml-auto" />
+              ) : (
+                <ChevronRightIcon className="h-4 w-4 mr-2 ml-auto" />
+              )}
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2">
+            {/* 色のグリッド */}
+            <div className="grid grid-cols-8 gap-2 py-2">
+              {color_def.map((color) => (
+                <div
+                  key={color}
+                  className={`w-10 h-10 rounded-full cursor-pointer border-2 ${
+                    currentColor === color
+                      ? "border-blue-500"
+                      : "border-gray-300"
+                  } hover:border-blue-500 transition-all flex items-center justify-center`} // 中央寄せを追加
+                  style={{ backgroundColor: color }}
+                  onClick={() => {
+                    if (onColorChange) {
+                      onColorChange(color);
+                      setIsColorSectionOpen(false);
+                    }
+                    // setIsColorSectionOpen(false); // 色選択後に閉じる場合はコメント解除
+                  }}
+                  role="button"
+                  aria-label={`色: ${color}`}
+                >
+                  {currentColor === color && ( // 選択された色にチェックマークなどを表示
+                    <svg
+                      className="w-full h-full text-white p-1"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+      <div className="mt-1 flex items-center space-x-2">
+        {/* --- アイコン選択セクション --- */}
+        <Collapsible
+          open={isIconSectionOpen}
+          onOpenChange={setIsIconSectionOpen}
+          className="space-y-2"
+        >
+          <CollapsibleTrigger asChild>
+            <div
+              className={cn(
+                "flex items-center cursor-pointer select-none rounded-md hover:bg-accent/50 transition-colors p-2 -m-2"
+              )}
+            >
+              <label
+                htmlFor="icon"
+                className="text-sm font-medium text-gray-700 cursor-pointer"
+              >
+                アイコン
+              </label>
+              <div className="w-6 h-6 flex items-center justify-center ml-4">
+                <CurrentIconComponent className="w-5 h-5 text-gray-700" />
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+              {isIconSectionOpen ? (
+                <ChevronDown className="h-4 w-4 ml-auto" />
+              ) : (
+                <ChevronRightIcon className="h-4 w-4 ml-auto" />
+              )}
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2">
+            <div className="grid grid-cols-8 gap-2 py-2">
+              {icon_definitions.map(({ name, component: IconComp }) => (
+                <div
+                  key={name}
+                  className={cn(
+                    "w-10 h-10 rounded-lg cursor-pointer border-2 flex items-center justify-center hover:border-blue-500 transition-all",
+                    itemStyleIconName === name
+                      ? "border-blue-500 bg-blue-100/50"
+                      : "border-gray-300"
+                  )}
+                  onClick={() => {
+                    if (onIconChange) {
+                      onIconChange(name);
+                      setIsIconSectionOpen(false);
+                    }
+                    // setIsIconSectionOpen(false); // Optionally close after selection
+                  }}
+                  role="button"
+                  aria-label={`アイコン: ${name}`}
+                  title={name}
+                >
+                  <IconComp className="w-5 h-5 text-gray-700" />
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>{" "}
       </div>
     </div>
   );
