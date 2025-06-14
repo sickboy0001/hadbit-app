@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+// import { AuthProvider } from "@/contexts/AuthContext"; // ★ AuthProvider をインポート
 // import { cookies, ReadonlyRequestCookies } from "next/headers"; // ★ ReadonlyRequestCookies を追加
 
 export const createClient = async () => {

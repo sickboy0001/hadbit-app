@@ -115,9 +115,23 @@ export function Header() {
           <div className="flex items-center space-x-4">
             {/* ログイン・ログアウトUIなど */}
             {loading ? (
-              <div className="h-9 w-90 animate-pulse rounded-md bg-muted flex items-center justify-end">
-                読み取り中・・・
-              </div>
+              <>
+                <div className="h-9 w-90 animate-pulse rounded-md bg-muted flex items-center justify-end">
+                  読み取り中・・・
+                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" onClick={handleSignOut}>
+                      LogOut
+                      <LogOut className="h-5 w-5" />
+                      <span className="sr-only">ログアウト</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>ログアウト</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
             ) : user ? (
               <>
                 <span className="hidden sm:inline-block text-sm text-muted-foreground truncate max-w-[90px]">
