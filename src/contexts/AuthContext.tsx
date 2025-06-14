@@ -31,7 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const updateUserState = async (supabaseUser: User | null) => {
       // Supabaseからユーザー情報が取得できない、またはメールアドレスがない場合は、
       // アプリケーションの拡張機能にとっては完全に認証されていないとみなす
-      if (supabaseUser === null || supabaseUser.email === null) {
+      // if (supabaseUser === null || supabaseUser.email === null) {
+      if (supabaseUser === null || supabaseUser?.email === null) {
         setUser(null);
         setLoading(false);
         console.log(
